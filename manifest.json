@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "william.tsundoku",
+  "name": "Tsundoku",
+  "version": "0.1.0",
+  "author": "wryanp",
+  "description": "A read/listen/watch list: save links from anywhere, see them with rich previews in a popup off the bar, and open them in the right player with one click.",
+  "kinds": ["service", "bar-widget"],
+  "keepLoaded": true,
+  "entryPoints": {
+    "service": "Service.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Tsundoku",
+    "description": "Saved links with previews and an unread badge",
+    "category": "Media",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

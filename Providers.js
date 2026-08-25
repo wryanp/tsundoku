@@ -59,7 +59,20 @@ function providerTable() {
       domains: ["open.spotify.com", "spotify.com"],
       logoAsset: "assets/logos/spotify.svg",
       resolver: { type: "oembed", endpoint: "https://open.spotify.com/oembed?url={url}" },
-      openAction: "spotify"
+      openAction: "spotify",
+      // OAuth 2.0 PKCE (public client, no secret). clientId ships empty:
+      // each install supplies its own Spotify app id via the clients.json
+      // overlay (see scripts/tsundoku-auth) — Spotify requires the exact
+      // redirect URI (including this port) to be registered on that app.
+      // No scopes: catalog metadata needs only a valid user token.
+      auth: {
+        authEndpoint: "https://accounts.spotify.com/authorize",
+        tokenEndpoint: "https://accounts.spotify.com/api/token",
+        scopes: [],
+        clientId: "",
+        redirectPort: 41419,
+        redirectPath: "/callback"
+      }
     },
     {
       id: "soundcloud",
@@ -226,6 +239,19 @@ function spotifyUri(url) {
   return "spotify:" + type + ":" + id
 }
 
+// The provider's OAuth config, or null for providers with no auth story.
+// scripts/tsundoku-auth requires() this module and resolves its per-install
+// overlay (clients.json) on top of what this returns.
+function authConfig(providerId) {
+  var entries = providerTable()
+  for (var i = 0; i < entries.length; i++) {
+    if (entries[i].id === providerId) {
+      return entries[i].auth || null
+    }
+  }
+  return null
+}
+
 // Decides how a URL should be opened. Every fallback here is silent by
 // design: a missing app (no mpv, no yt-dlp, no spotify handler) must
 // never block the open, it should just degrade to the browser.
@@ -271,6 +297,7 @@ if (typeof module !== "undefined" && module.exports) {
     guessKind: guessKind,
     isDirectAudioUrl: isDirectAudioUrl,
     spotifyUri: spotifyUri,
+    authConfig: authConfig,
     openPlan: openPlan
   }
 }

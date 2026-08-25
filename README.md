@@ -53,15 +53,46 @@ hostname title and shows a retry button.
 Items from recognized platforms show that platform's logo, tinted to your
 theme's foreground color. Everything else gets a watch/listen/read glyph.
 
+## Connect Spotify (optional)
+
+Signing in is never required — Spotify links always work with public
+metadata. Connecting your account upgrades them: real artist names, track
+durations, and higher-resolution artwork straight from the Web API.
+
+Auth is OAuth 2.0 with PKCE through your normal browser. Tsundoku never
+sees a password; it only ever holds the resulting token, stored at
+`~/.local/share/tsundoku/auth/spotify.json` with `0600` permissions and
+refreshed silently. Disconnecting deletes that file.
+
+Because Spotify requires every app to register its own OAuth client, a
+one-time setup is needed before the Connect button goes live:
+
+1. Create an app at <https://developer.spotify.com/dashboard> (any name).
+2. Add `http://127.0.0.1:41419/callback` as a Redirect URI — exactly that,
+   the port matters.
+3. Put the app's Client ID where Tsundoku looks for it:
+
+```bash
+mkdir -p ~/.local/share/tsundoku/auth
+echo '{"spotify": {"clientId": "YOUR_CLIENT_ID"}}' > ~/.local/share/tsundoku/auth/clients.json
+```
+
+Then hit Connect in the popup's settings row. No scopes are requested —
+the token only reads public catalog metadata.
+
 ## IPC
 
 The service answers on the `tsundoku` IPC target:
 
 ```bash
-omarchy-shell tsundoku add <url>   # prints "ok", "duplicate", or "invalid"
-omarchy-shell tsundoku count       # prints the unread count
-omarchy-shell tsundoku list        # prints the whole library as JSON
-omarchy-shell tsundoku ping        # prints "ok" — is the service alive?
+omarchy-shell tsundoku add <url>       # prints "ok", "duplicate", or "invalid"
+omarchy-shell tsundoku open <id>       # opens an item, prints the method used
+omarchy-shell tsundoku count           # prints the unread count
+omarchy-shell tsundoku list            # prints the whole library as JSON
+omarchy-shell tsundoku ping            # prints "ok" — is the service alive?
+omarchy-shell tsundoku authStatus      # prints connection state per provider
+omarchy-shell tsundoku authConnect spotify     # starts the browser auth flow
+omarchy-shell tsundoku authDisconnect spotify  # forgets the stored token
 ```
 
 `add` always exits 0 when the shell is reachable; what happened is in the
@@ -74,6 +105,8 @@ config:
 
 - `~/.local/share/tsundoku/library.json` — the list itself
 - `~/.local/share/tsundoku/thumbs/` — cached thumbnail images
+- `~/.local/share/tsundoku/auth/` — OAuth tokens (`0600`) and your
+  `clients.json` client-id overlay, if you've connected a provider
 
 Nothing runtime is stored in the plugin's own git checkout.
 

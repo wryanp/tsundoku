@@ -121,13 +121,38 @@ thumbnail when there is one, the tinted logo otherwise, and the plain kind
 glyph as the fallback while either is still loading — so there's never a
 flash of an untinted or broken image.
 
-## Planned auth (v0.5)
+## Auth (v0.5)
 
-Where a provider needs authenticated access (Spotify first), auth uses OAuth
-2.0 Authorization Code with PKCE: a loopback listener on `127.0.0.1` catches
-the redirect, the authorization step opens in the system browser via
-`xdg-open`, and no credential ever passes through Tsundoku itself. Tokens are
-written to `~/.local/share/tsundoku/auth/<provider>.json` with `chmod 0600`.
+`scripts/tsundoku-auth` (Node, CommonJS, no dependencies) owns the whole
+OAuth story: `connect` runs Authorization Code + PKCE for a public client —
+a one-shot loopback listener on `127.0.0.1` catches the redirect while the
+authorization step opens in the system browser via `xdg-open`, so no
+credential ever passes through Tsundoku itself. `token` prints a valid
+access token, refreshing silently first when the stored one is near expiry;
+`disconnect` deletes the token file; `status` reports
+connected/disconnected/unconfigured. Every command prints exactly one line
+of JSON and exits 0 — same contract shape as the resolver.
+
+Provider auth config is registry data like everything else: the `auth`
+block on the Spotify entry in `Providers.js` (endpoints, empty scopes, the
+fixed redirect port Spotify's exact-match rule requires). The client id is
+per-install, not in the repo: `~/.local/share/tsundoku/auth/clients.json`
+overlays the registry block, so connecting means registering a Spotify app
+once and dropping its id in that file. Tokens land at
+`~/.local/share/tsundoku/auth/<provider>.json`, dir `0700`, file `0600`.
+
+Enrichment is strictly additive. `tsundoku-resolve` takes `--auth-cmd`
+(always passed by the service) and, for `open.spotify.com` items with a
+token available, follows the resolved tiers with a Web API call that
+upgrades title/author/artwork and fills `durationSeconds`. Every failure —
+no node, no token, API error — degrades silently to the public tiers, per
+the auth-is-strictly-additive principle. The loopback flow itself runs
+against a mock provider in `tests/auth.test.cjs`, so the whole exchange is
+covered without touching Spotify.
+
+The popup's settings row and the `authStatus`/`authConnect`/
+`authDisconnect` IPC methods drive the same service functions; the IPC path
+doubles as the scriptable way to verify the flow end to end.
 
 ## Dev workflow
 

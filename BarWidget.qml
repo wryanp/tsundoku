@@ -13,6 +13,10 @@ BarWidget {
   readonly property var service: bar?.shell?.serviceFor("william.tsundoku")
   readonly property var items: service ? service.items : []
   readonly property int unreadCount: service ? service.unreadCount : 0
+  // Bound (not read once) so the settings row re-evaluates when the
+  // service reassigns these wholesale.
+  readonly property var authState: service ? service.authState : ({})
+  readonly property string lastAuthError: service ? service.lastAuthError : ""
 
   // Scanned once here rather than per-delegate.
   readonly property var providerEntries: Providers.all()
@@ -416,6 +420,96 @@ BarWidget {
         font.family: root.bar.fontFamily
         font.pixelSize: Style.font.bodySmall
         wrapMode: Text.WordWrap
+      }
+
+      PanelSeparator {
+        foreground: root.bar.foreground
+      }
+
+      Row {
+        id: spotifySettingsRow
+        width: parent.width
+        spacing: Style.space(8)
+
+        readonly property string spotifyState: root.authState.spotify || "unknown"
+
+        // Same hidden-Image + MultiEffect tint idiom as the item rows'
+        // provider logo, sized down to a settings-row glyph rather than a
+        // thumbnail slot.
+        Item {
+          id: spotifyLogoSlot
+          width: Style.space(20)
+          height: Style.space(20)
+          anchors.verticalCenter: parent.verticalCenter
+
+          Image {
+            id: spotifyLogoImage
+            anchors.fill: parent
+            visible: false
+            layer.enabled: true
+            asynchronous: true
+            fillMode: Image.PreserveAspectFit
+            source: Qt.resolvedUrl("assets/logos/spotify.svg")
+          }
+
+          MultiEffect {
+            anchors.fill: spotifyLogoImage
+            source: spotifyLogoImage
+            visible: spotifyLogoImage.status === Image.Ready
+            colorization: 1.0
+            colorizationColor: root.bar.foreground
+          }
+        }
+
+        Column {
+          width: parent.width - spotifyLogoSlot.width - spotifyAuthButton.width - spotifySettingsRow.spacing * 2
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: Style.space(1)
+
+          Text {
+            text: "Spotify"
+            color: root.bar.foreground
+            font.family: root.bar.fontFamily
+            font.pixelSize: Style.font.bodySmall
+            font.bold: true
+          }
+
+          Text {
+            text: {
+              var state = spotifySettingsRow.spotifyState
+              if (state === "connected") return "Connected — richer metadata"
+              if (state === "connecting") return "Waiting for your browser…"
+              if (state === "error") return root.lastAuthError ? ("Connection failed: " + root.lastAuthError) : "Connection failed"
+              if (state === "unconfigured") return "Needs a Spotify app client id"
+              if (state === "disconnected") return "Connect for richer metadata"
+              return "Unavailable"
+            }
+            color: Qt.darker(root.bar.foreground, 1.5)
+            font.family: root.bar.fontFamily
+            font.pixelSize: Style.font.caption
+            elide: Text.ElideRight
+            width: parent.width
+          }
+        }
+
+        Button {
+          id: spotifyAuthButton
+          anchors.verticalCenter: parent.verticalCenter
+          text: spotifySettingsRow.spotifyState === "connected" ? "Disconnect"
+              : spotifySettingsRow.spotifyState === "connecting" ? "Connecting…"
+              : "Connect"
+          enabled: spotifySettingsRow.spotifyState === "connected" || spotifySettingsRow.spotifyState === "disconnected" || spotifySettingsRow.spotifyState === "error"
+          foreground: root.bar.foreground
+          bordered: true
+          horizontalPadding: Style.spacing.controlPaddingX
+          verticalPadding: Style.spacing.controlPaddingY
+          fontSize: Style.font.bodySmall
+          onClicked: {
+            if (!root.service) return
+            if (spotifySettingsRow.spotifyState === "connected") root.service.disconnectProvider("spotify")
+            else root.service.connectProvider("spotify")
+          }
+        }
       }
     }
   }

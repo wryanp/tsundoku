@@ -10,18 +10,25 @@
 # caller (that's the whole point of having a fallback tier), only a
 # malformed invocation is.
 #
-# Usage: tsundoku-resolve --thumbs-dir DIR [--oembed ENDPOINT_URL] <url>
+# --auth-cmd, if given, points at tsundoku-auth and unlocks a fourth,
+# strictly additive step for Spotify URLs only: it can overwrite tier
+# fields with richer API data, but its own failure (no auth, no network,
+# bad response) never demotes or blanks whatever the three tiers produced.
+#
+# Usage: tsundoku-resolve --thumbs-dir DIR [--oembed ENDPOINT_URL]
+#                          [--auth-cmd PATH] <url>
 
 UA="tsundoku/0.3 (+https://github.com/wryanp/tsundoku)"
 CURL_OPTS=(--max-time 5 -sS -L --fail -A "$UA")
 
 usage() {
-  echo "Usage: tsundoku-resolve --thumbs-dir DIR [--oembed ENDPOINT_URL] <url>" >&2
+  echo "Usage: tsundoku-resolve --thumbs-dir DIR [--oembed ENDPOINT_URL] [--auth-cmd PATH] <url>" >&2
   exit 1
 }
 
 thumbs_dir=""
 oembed_url=""
+auth_cmd=""
 url=""
 
 while [[ $# -gt 0 ]]; do
@@ -32,6 +39,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --oembed)
       oembed_url="$2"
+      shift 2
+      ;;
+    --auth-cmd)
+      auth_cmd="$2"
       shift 2
       ;;
     *)
@@ -99,10 +110,19 @@ trim() {
 # its PIPESTATUS) in this shell so we can tell "curl failed" apart from
 # "curl got SIGPIPE because head closed the read end at 256 KiB" (exit 23,
 # which we tolerate — it's the size cap working as intended).
+#
+# $2, if given, is passed to curl as a single -H header (e.g. the Spotify
+# bearer token) — kept as one fetch helper rather than forking a second one
+# for authenticated calls, since the caps and PIPESTATUS handling must stay
+# identical for both.
 fetch_capped() {
   local tmp
   tmp="$(mktemp)"
-  curl "${CURL_OPTS[@]}" "$1" 2>/dev/null | head -c 262144 >"$tmp"
+  if [[ -n "$2" ]]; then
+    curl "${CURL_OPTS[@]}" -H "$2" "$1" 2>/dev/null | head -c 262144 >"$tmp"
+  else
+    curl "${CURL_OPTS[@]}" "$1" 2>/dev/null | head -c 262144 >"$tmp"
+  fi
   fetch_status=${PIPESTATUS[0]}
   body="$(cat "$tmp")"
   rm -f "$tmp"
@@ -176,6 +196,59 @@ download_thumbnail() {
 
   rm -f "$dest" 2>/dev/null
   return 1
+}
+
+# --- Spotify enrichment helpers ------------------------------------------
+
+# Same host recipe as the bare tier below: strip scheme, path, userinfo,
+# port, and a leading www. Factored out so the enrichment gate and the
+# bare-tier fallback can't drift into two different ideas of "the host".
+url_host() {
+  local h="$1"
+  h="${h#*://}"
+  h="${h%%[/?#]*}"
+  h="${h##*@}"
+  h="${h%%:*}"
+  h="${h#www.}"
+  printf '%s' "$h"
+}
+
+# Ported from Providers.spotifyUri: path segments after the host, dropping
+# a locale prefix when there are 3 (e.g. "/intl-pt/track/{id}"), requiring
+# exactly {type}/{id} with a known type. Sets spotify_type/spotify_id on
+# success. The caller treats any failure here as "skip enrichment", so
+# this has no diagnostic output on the non-zero return.
+spotify_type=""
+spotify_id=""
+parse_spotify_resource() {
+  local u="$1" after_scheme host_part path_only
+  after_scheme="${u#*://}"
+  host_part="${after_scheme%%[/?#]*}"
+  path_only="${after_scheme#"$host_part"}"
+  path_only="${path_only%%[?#]*}"
+
+  local -a raw_segs
+  IFS='/' read -ra raw_segs <<<"$path_only"
+  local -a segs=()
+  local seg
+  for seg in "${raw_segs[@]}"; do
+    [[ -n "$seg" ]] && segs+=("$seg")
+  done
+
+  if [[ ${#segs[@]} -eq 3 ]]; then
+    segs=("${segs[1]}" "${segs[2]}")
+  fi
+  [[ ${#segs[@]} -eq 2 ]] || return 1
+
+  local type="${segs[0]}" id="${segs[1]}"
+  case "$type" in
+    track | album | artist | playlist | episode | show) ;;
+    *) return 1 ;;
+  esac
+  [[ -n "$id" ]] || return 1
+
+  spotify_type="$type"
+  spotify_id="$id"
 }
 
 # --- resolution tiers ------------------------------------------------------
@@ -253,6 +326,11 @@ host_and_rest="${url#*://}"
 host_only="${host_and_rest%%/*}"
 page_base="$scheme://$host_only"
 
+# Same host recipe as url_host(), computed once up front since both the
+# bare tier and the enrichment gate below need it — tsundoku-add uses this
+# recipe too, for its notification toast.
+page_host="$(url_host "$url")"
+
 if [[ -n "$oembed_url" ]] && resolve_oembed; then
   tier="oembed"
   status="resolved"
@@ -262,14 +340,83 @@ elif resolve_opengraph; then
 else
   tier="bare"
   status="bare"
-  # Bare host: strip scheme, path, userinfo, port, and www. — same recipe
-  # tsundoku-add uses for its notification toast.
-  bare_host="${url#*://}"
-  bare_host="${bare_host%%[/?#]*}"
-  bare_host="${bare_host##*@}"
-  bare_host="${bare_host%%:*}"
-  bare_host="${bare_host#www.}"
-  title="$bare_host"
+  title="$page_host"
+fi
+
+# --- Spotify metadata enrichment ------------------------------------------
+#
+# Strictly additive on top of whichever tier just ran: only overwrites a
+# field when the API actually returned a non-empty value for it, and every
+# way this can fail — no --auth-cmd, non-Spotify host, unparsable resource,
+# not connected, non-2xx, invalid JSON — is silent and leaves the tier
+# result exactly as resolved above. Never touches the network for a
+# non-Spotify host or when --auth-cmd wasn't given.
+durationSeconds=""
+enriched=false
+
+if [[ -n "$auth_cmd" && "$page_host" == "open.spotify.com" ]] && parse_spotify_resource "$url"; then
+  auth_json="$("$auth_cmd" token spotify 2>/dev/null)"
+  token=""
+  [[ -n "$auth_json" ]] && token="$(jq -r '.accessToken // empty' <<<"$auth_json" 2>/dev/null)"
+
+  if [[ -n "$token" ]]; then
+    plural=""
+    case "$spotify_type" in
+      track) plural="tracks" ;;
+      album) plural="albums" ;;
+      artist) plural="artists" ;;
+      playlist) plural="playlists" ;;
+      episode) plural="episodes" ;;
+      show) plural="shows" ;;
+    esac
+
+    fetch_capped "https://api.spotify.com/v1/$plural/$spotify_id" "Authorization: Bearer $token"
+    if { [[ $fetch_status -eq 0 ]] || [[ $fetch_status -eq 23 ]]; } && [[ -n "$body" ]] && jq -e . >/dev/null 2>&1 <<<"$body"; then
+      enriched=true
+
+      api_title="$(jq -r '.name // empty' <<<"$body" 2>/dev/null)"
+      api_author=""
+      api_thumb=""
+      api_duration_ms=""
+
+      # author and thumb locations vary by resource type; episode has no
+      # author field since the episode object's show is not always present.
+      case "$spotify_type" in
+        track)
+          api_author="$(jq -r '[.artists[]?.name] | join(", ")' <<<"$body" 2>/dev/null)"
+          api_duration_ms="$(jq -r '.duration_ms // empty' <<<"$body" 2>/dev/null)"
+          api_thumb="$(jq -r '.album.images[0].url // empty' <<<"$body" 2>/dev/null)"
+          ;;
+        album)
+          api_author="$(jq -r '[.artists[]?.name] | join(", ")' <<<"$body" 2>/dev/null)"
+          api_thumb="$(jq -r '.images[0].url // empty' <<<"$body" 2>/dev/null)"
+          ;;
+        episode)
+          api_duration_ms="$(jq -r '.duration_ms // empty' <<<"$body" 2>/dev/null)"
+          api_thumb="$(jq -r '.images[0].url // empty' <<<"$body" 2>/dev/null)"
+          ;;
+        show)
+          api_author="$(jq -r '.publisher // empty' <<<"$body" 2>/dev/null)"
+          api_thumb="$(jq -r '.images[0].url // empty' <<<"$body" 2>/dev/null)"
+          ;;
+        playlist)
+          api_author="$(jq -r '.owner.display_name // empty' <<<"$body" 2>/dev/null)"
+          api_thumb="$(jq -r '.images[0].url // empty' <<<"$body" 2>/dev/null)"
+          ;;
+        artist)
+          api_thumb="$(jq -r '.images[0].url // empty' <<<"$body" 2>/dev/null)"
+          ;;
+      esac
+
+      [[ -n "$api_title" ]] && title="$api_title"
+      [[ -n "$api_author" ]] && author="$api_author"
+      [[ -n "$api_thumb" ]] && thumb_source_url="$api_thumb"
+      if [[ -n "$api_duration_ms" ]]; then
+        # Round to nearest second rather than truncate.
+        durationSeconds="$(awk -v ms="$api_duration_ms" 'BEGIN{printf "%d", (ms/1000)+0.5}')"
+      fi
+    fi
+  fi
 fi
 
 thumbnailPath=""
@@ -287,6 +434,8 @@ jq -nc \
   --arg description "$description" \
   --arg siteName "$siteName" \
   --arg thumbnailPath "$thumbnailPath" \
-  '{status: $status, tier: $tier, title: $title, author: $author, description: $description, siteName: $siteName, thumbnailPath: $thumbnailPath}'
+  --argjson durationSeconds "${durationSeconds:-null}" \
+  --argjson enriched "$enriched" \
+  '{status: $status, tier: $tier, title: $title, author: $author, description: $description, siteName: $siteName, thumbnailPath: $thumbnailPath, durationSeconds: $durationSeconds, enriched: $enriched}'
 
 exit 0

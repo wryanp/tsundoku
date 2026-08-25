@@ -24,6 +24,9 @@ Item {
   // location so it works regardless of where the plugin checkout lives.
   readonly property string resolveScriptPath: String(Qt.resolvedUrl("scripts/tsundoku-resolve")).replace(/^file:\/\//, "")
 
+  // Same recipe, for the OAuth helper.
+  readonly property string authScriptPath: String(Qt.resolvedUrl("scripts/tsundoku-auth")).replace(/^file:\/\//, "")
+
   // Full library, newest first. Reassigned wholesale on every mutation so
   // QML bindings (in-place array mutation is invisible to them) pick it up.
   property var items: []
@@ -41,7 +44,17 @@ Item {
   // Which open targets exist on this machine, probed once at startup.
   // All-false until the probe answers (and stays all-false if it fails),
   // so every open falls back to the browser rather than a missing app.
-  property var openCaps: ({ mpv: false, ytdlp: false, spotifyHandler: false })
+  // node guards executing the node-shebanged auth script directly.
+  property var openCaps: ({ mpv: false, ytdlp: false, spotifyHandler: false, node: false })
+
+  // Per-provider OAuth state. "spotify" is the only key today. Reassigned
+  // wholesale on every change, same rationale as items above. "unknown"
+  // until the startup status probe (or a connect/disconnect) resolves it.
+  property var authState: ({ spotify: "unknown" })
+
+  // Set from a connect/disconnect result's error field; cleared whenever a
+  // new flow starts so a stale message never survives past its cause.
+  property string lastAuthError: ""
 
   readonly property int unreadCount: {
     var count = 0
@@ -147,7 +160,7 @@ Item {
       return copy
     })
 
-    var args = [root.resolveScriptPath, "--thumbs-dir", root.thumbsDir]
+    var args = [root.resolveScriptPath, "--thumbs-dir", root.thumbsDir, "--auth-cmd", root.authScriptPath]
     var entry = root.providerEntryFor(item.provider)
     if (entry && entry.resolver && entry.resolver.type === "oembed" && entry.resolver.endpoint) {
       var endpoint = entry.resolver.endpoint.replace("{url}", encodeURIComponent(item.url))
@@ -193,6 +206,7 @@ Item {
         if (parsed.title) copy.title = parsed.title
         copy.author = parsed.author || ""
         if (parsed.thumbnailPath) copy.thumbnailPath = parsed.thumbnailPath
+        if (typeof parsed.durationSeconds === "number") copy.durationSeconds = parsed.durationSeconds
         copy.resolveState = parsed.status === "resolved" ? "resolved" : "failed"
       } else {
         copy.resolveState = "failed"
@@ -271,6 +285,92 @@ Item {
     root.saveLibrary()
   }
 
+  // Reassigns authState wholesale, same rationale as items/openCaps above
+  // (in-place mutation of the existing object is invisible to bindings).
+  function setAuthState(providerId, state) {
+    var copy = {}
+    for (var k in root.authState) copy[k] = root.authState[k]
+    copy[providerId] = state
+    root.authState = copy
+  }
+
+  // Starts the spotify OAuth flow in the background via tsundoku-auth —
+  // the browser round trip can take minutes, so this must never block.
+  // Guarded to spotify (the only wired provider), the node cap (the script
+  // is node-shebanged), and against stacking a second flow on a running
+  // one. Returns whether a flow was actually started, so the IPC method
+  // can report "unavailable" when it wasn't.
+  function connectProvider(providerId) {
+    if (providerId !== "spotify") return false
+    if (!root.openCaps.node) return false
+    if (root.authState[providerId] === "connecting") return false
+
+    root.lastAuthError = ""
+    root.setAuthState(providerId, "connecting")
+
+    var proc = authProcessComponent.createObject(root, { tsundokuAuthProviderId: providerId, tsundokuAuthAction: "connect" })
+    if (!proc) return false
+    proc.command = [root.authScriptPath, "connect", providerId]
+    proc.running = true
+    return true
+  }
+
+  // Disconnect is quick (no browser round trip) but still routed through
+  // the same dynamic Process shape as connect for consistency.
+  function disconnectProvider(providerId) {
+    if (providerId !== "spotify") return false
+    if (!root.openCaps.node) return false
+
+    var proc = authProcessComponent.createObject(root, { tsundokuAuthProviderId: providerId, tsundokuAuthAction: "disconnect" })
+    if (!proc) return false
+    proc.command = [root.authScriptPath, "disconnect", providerId]
+    proc.running = true
+    return true
+  }
+
+  // Handles one auth Process's stdout, for both connect and disconnect —
+  // tsundoku-auth (like tsundoku-resolve) always exits 0, so a bad/missing
+  // JSON line here means something upstream broke and lands as "error".
+  // On a successful spotify connect, every unconsumed item already piled
+  // under that provider is re-resolved so it can pick up enriched metadata
+  // without the user having to retry it by hand.
+  function finishAuth(proc, raw) {
+    var providerId = proc.tsundokuAuthProviderId
+    var action = proc.tsundokuAuthAction
+    proc.destroy()
+
+    var parsed = null
+    var trimmedRaw = String(raw || "").trim()
+    if (trimmedRaw) {
+      try {
+        parsed = JSON.parse(trimmedRaw)
+      } catch (e) {
+        parsed = null
+      }
+    }
+
+    if (!parsed || typeof parsed !== "object" || !parsed.state) {
+      root.setAuthState(providerId, "error")
+      return
+    }
+
+    if (action === "connect") {
+      if (parsed.state === "connected") {
+        root.setAuthState(providerId, "connected")
+        root.items.filter(function(it) {
+          return !it.consumedAt && it.provider === providerId
+        }).forEach(function(it) {
+          root.resolveItem(it.id)
+        })
+      } else {
+        root.setAuthState(providerId, parsed.state)
+        root.lastAuthError = parsed.error || ""
+      }
+    } else {
+      root.setAuthState(providerId, parsed.state)
+    }
+  }
+
   // Routes through Providers.openPlan so watch links land in mpv and
   // listen links in the Spotify client when those exist on this machine,
   // with a silent browser fallback otherwise. Returns the method used so
@@ -308,12 +408,14 @@ Item {
     command: ["mkdir", "-p", root.dataDir, root.thumbsDir]
   }
 
-  // Probes for mpv, yt-dlp, and a registered Spotify URI handler once at
+  // Probes for mpv, yt-dlp, a registered Spotify URI handler, and node
+  // (needed to execute the node-shebanged auth script directly) once at
   // startup. Never touches openCaps on a bad parse or a non-zero exit —
-  // the all-false default (browser for everything) is always safe.
+  // the all-false default (browser for everything, auth unavailable) is
+  // always safe.
   Process {
     id: capsProc
-    command: ["sh", "-c", "m=false; command -v mpv >/dev/null 2>&1 && m=true; y=false; command -v yt-dlp >/dev/null 2>&1 && y=true; s=false; [ -n \"$(xdg-mime query default x-scheme-handler/spotify 2>/dev/null)\" ] && s=true; printf '{\"mpv\":%s,\"ytdlp\":%s,\"spotifyHandler\":%s}\\n' \"$m\" \"$y\" \"$s\""]
+    command: ["sh", "-c", "m=false; command -v mpv >/dev/null 2>&1 && m=true; y=false; command -v yt-dlp >/dev/null 2>&1 && y=true; s=false; [ -n \"$(xdg-mime query default x-scheme-handler/spotify 2>/dev/null)\" ] && s=true; n=false; command -v node >/dev/null 2>&1 && n=true; printf '{\"mpv\":%s,\"ytdlp\":%s,\"spotifyHandler\":%s,\"node\":%s}\\n' \"$m\" \"$y\" \"$s\" \"$n\""]
 
     stdout: StdioCollector {
       waitForEnd: true
@@ -323,6 +425,29 @@ Item {
           if (parsed && typeof parsed === "object") root.openCaps = parsed
         } catch (e) {
           // leave openCaps at its all-false default
+        }
+        // Only fires on a successful parse with node true — openCaps.node
+        // stays false otherwise, per the all-false-is-safe default above.
+        if (root.openCaps.node) authStatusProc.running = true
+      }
+    }
+  }
+
+  // Startup read of the spotify connection state. Runs only once node is
+  // known to exist (see capsProc above) since the script is node-shebanged.
+  // Parse failure leaves authState.spotify at its "unknown" default.
+  Process {
+    id: authStatusProc
+    command: [root.authScriptPath, "status", "spotify"]
+
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var parsed = JSON.parse(String(text || "").trim())
+          if (parsed && typeof parsed === "object" && parsed.state) root.setAuthState("spotify", parsed.state)
+        } catch (e) {
+          // leave authState.spotify at "unknown"
         }
       }
     }
@@ -340,6 +465,24 @@ Item {
       stdout: StdioCollector {
         waitForEnd: true
         onStreamFinished: root.finishResolve(proc, text)
+      }
+    }
+  }
+
+  // One of these is created per connect/disconnect call, mirroring
+  // resolveProcessComponent — connect especially can run for minutes
+  // waiting on the user's browser, so it must never block anything else.
+  Component {
+    id: authProcessComponent
+
+    Process {
+      id: proc
+      property string tsundokuAuthProviderId: ""
+      property string tsundokuAuthAction: ""
+
+      stdout: StdioCollector {
+        waitForEnd: true
+        onStreamFinished: root.finishAuth(proc, text)
       }
     }
   }
@@ -379,6 +522,18 @@ Item {
 
     function list(): string {
       return JSON.stringify(root.items)
+    }
+
+    function authStatus(): string {
+      return JSON.stringify(root.authState)
+    }
+
+    function authConnect(provider: string): string {
+      return root.connectProvider(provider) ? "started" : "unavailable"
+    }
+
+    function authDisconnect(provider: string): string {
+      return root.disconnectProvider(provider) ? "ok" : "unavailable"
     }
   }
 }

@@ -275,6 +275,22 @@ Item {
     root.saveLibrary()
   }
 
+  // Trims text and stores it as the item's notes; "" clears the note.
+  function setNote(id, text) {
+    var target = root.findItem(id)
+    if (!target) return "missing"
+    var note = String(text || "").trim()
+    root.items = root.items.map(function(item) {
+      if (item.id !== id) return item
+      var copy = {}
+      for (var k in item) copy[k] = item[k]
+      copy.notes = note
+      return copy
+    })
+    root.saveLibrary()
+    return "ok"
+  }
+
   function removeItem(id) {
     var target = root.findItem(id)
     // Only ever delete inside our own thumbs cache — never a path outside it.
@@ -522,6 +538,10 @@ Item {
 
     function list(): string {
       return JSON.stringify(root.items)
+    }
+
+    function setNote(id: string, text: string): string {
+      return root.setNote(id, text)
     }
 
     function authStatus(): string {

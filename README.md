@@ -39,6 +39,22 @@ o.bind("SUPER + SHIFT + U", "Tsundoku capture",
 Pick any free chord — on a stock Omarchy install `SUPER+SHIFT+U` is
 unclaimed. Run `omarchy menu keybindings --print` to check yours.
 
+## The panel
+
+The popup is built to live in without a mouse:
+
+- **Tabs.** All / Watch / Listen / Read / Done, each with a live count.
+  All is everything unread; Done is everything you've finished.
+- **Keyboard.** The add field has focus the moment the popup opens. `Down`
+  moves onto the list and `Up`/`Down` walk it; `Enter` opens the selected
+  row (the same mpv/Spotify/browser routing as a click), `Del` deletes it,
+  and `Up` from the top row returns to the add field. `Esc` closes the
+  popup. Typing anything drops you back into the add field.
+- **Notes.** The 󰎞 button on a row opens an inline note field — a line
+  about why you saved the thing. Notes persist in the library, and a row
+  with a note shows a small 󰎞 next to its caption. `Esc` in the note field
+  collapses it without closing the popup.
+
 ## Previews
 
 A saved link resolves into a real title, author, and thumbnail in the
@@ -89,6 +105,7 @@ omarchy-shell tsundoku add <url>       # prints "ok", "duplicate", or "invalid"
 omarchy-shell tsundoku open <id>       # opens an item, prints the method used
 omarchy-shell tsundoku count           # prints the unread count
 omarchy-shell tsundoku list            # prints the whole library as JSON
+omarchy-shell tsundoku setNote <id> <text>  # sets an item's note ("" clears)
 omarchy-shell tsundoku ping            # prints "ok" — is the service alive?
 omarchy-shell tsundoku authStatus      # prints connection state per provider
 omarchy-shell tsundoku authConnect spotify     # starts the browser auth flow

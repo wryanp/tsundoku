@@ -5,6 +5,7 @@ import Quickshell
 import qs.Ui
 import qs.Commons
 import "Providers.js" as Providers
+import "PanelModel.js" as PanelModel
 
 BarWidget {
   id: root
@@ -36,12 +37,34 @@ BarWidget {
   // human message for the invalid/duplicate cases.
   property string addError: ""
 
+  // Keyboard cursor: -1 is the add field (the resting zone), 0.. is a row
+  // index into filteredItems. The add field keeps activeFocus the whole
+  // time (single-focus-zone design) — this property drives row highlight
+  // and Down/Up/Enter/Delete instead of moving Quickshell's focus around.
+  property int cursor: -1
+
+  // Id of the single expanded row's note detail, "" when none is open.
+  property string expandedId: ""
+
   // Reset feedback on open/close, and focus the add field on open so the
   // popup is paste-ready without a click.
   onPopupOpenChanged: {
     root.addError = ""
+    root.cursor = -1
+    root.expandedId = ""
     if (root.popupOpen) addField.forceActiveFocus()
   }
+
+  // Switching tabs changes what row 0.. even means, so land back on the
+  // field rather than pointing at whatever now sits at the old index.
+  onFilterChanged: cursor = -1
+
+  // The list can shrink out from under the cursor (delete, mark-done under
+  // a kind filter, ...) — refit rather than pointing past the end.
+  onFilteredItemsChanged: cursor = PanelModel.clampCursor(filteredItems.length, cursor)
+
+  // Keep the selected row on screen as the cursor moves past the fold.
+  onCursorChanged: if (cursor >= 0) itemList.positionViewAtIndex(cursor, ListView.Contain)
 
   // open/close/opened form the bar host's summon contract, so
   // `omarchy-shell shell toggle william.tsundoku` can drive the popup
@@ -50,11 +73,17 @@ BarWidget {
   function open() { popupOpen = true }
   function close() { popupOpen = false }
 
-  readonly property var filteredItems: {
-    var list = root.items
-    if (root.filter === "done") return list.filter(function(it) { return !!it.consumedAt })
-    if (root.filter === "all") return list.filter(function(it) { return !it.consumedAt })
-    return list.filter(function(it) { return !it.consumedAt && it.kind === root.filter })
+  readonly property var filteredItems: PanelModel.filterItems(root.items, root.filter)
+
+  // Per-tab counts, recomputed alongside filteredItems so the tab row
+  // stays live without a second pass over root.items per tab.
+  readonly property var tabCounts: PanelModel.tabCounts(root.items)
+
+  // Enter-on-a-row shares the exact open path a row click takes.
+  function openCursorRow() {
+    if (root.cursor < 0) return
+    if (root.service) root.service.openItem(root.filteredItems[root.cursor].id)
+    root.close()
   }
 
   function tryAdd() {
@@ -140,7 +169,33 @@ BarWidget {
           placeholderText: "Paste a URL…"
           foreground: root.bar.foreground
           onAccepted: root.tryAdd()
-          onTextChanged: root.addError = ""
+          onTextChanged: {
+            root.addError = ""
+            // Typing means the user is back in the field, not on a row.
+            root.cursor = -1
+          }
+
+          // Keys fires before the TextField's own editing, so anything we
+          // don't handle here must be explicitly passed through or the
+          // field would silently eat arrow/enter/delete keys.
+          Keys.onDownPressed: root.cursor = PanelModel.moveCursor(root.filteredItems.length, root.cursor, 1)
+          Keys.onUpPressed: root.cursor = PanelModel.moveCursor(root.filteredItems.length, root.cursor, -1)
+          Keys.onReturnPressed: function(event) {
+            if (root.cursor >= 0) root.openCursorRow()
+            else event.accepted = false
+          }
+          Keys.onEnterPressed: function(event) {
+            if (root.cursor >= 0) root.openCursorRow()
+            else event.accepted = false
+          }
+          Keys.onDeletePressed: function(event) {
+            if (root.cursor >= 0) {
+              if (root.service) root.service.removeItem(root.filteredItems[root.cursor].id)
+            } else {
+              event.accepted = false
+            }
+          }
+          Keys.onEscapePressed: root.close()
         }
 
         Button {
@@ -169,17 +224,11 @@ BarWidget {
         spacing: Style.space(4)
 
         Repeater {
-          model: [
-            { key: "all", label: "All" },
-            { key: "watch", label: "Watch" },
-            { key: "listen", label: "Listen" },
-            { key: "read", label: "Read" },
-            { key: "done", label: "Done" }
-          ]
+          model: PanelModel.filterTabs()
 
           Button {
             required property var modelData
-            text: modelData.label
+            text: modelData.label + " " + root.tabCounts[modelData.key]
             foreground: root.bar.foreground
             selected: root.filter === modelData.key
             horizontalPadding: Style.spacing.controlPaddingX
@@ -211,201 +260,261 @@ BarWidget {
         delegate: BorderSurface {
           id: itemRow
           required property var modelData
+          // Index into filteredItems, supplied by ListView — drives the
+          // keyboard-cursor highlight below.
+          required property int index
 
           readonly property var it: modelData
           readonly property bool done: !!it.consumedAt
           readonly property string kindGlyph: it.kind === "watch" ? "󰕧" : it.kind === "listen" ? "󰋋" : "󰈙"
           readonly property var providerEntry: root.providerEntryFor(it.provider)
           readonly property string providerLabel: providerEntry ? providerEntry.displayName : it.provider
-          readonly property string caption: it.author ? (providerLabel + " · " + it.author) : providerLabel
+          // Trailing glyph flags a saved note without adding a whole line
+          // to every row.
+          readonly property string caption: (it.author ? (providerLabel + " · " + it.author) : providerLabel) + (it.notes ? "  󰎞" : "")
+          readonly property bool isCursor: index === root.cursor
+          readonly property bool expanded: root.expandedId === it.id
 
           width: ListView.view.width
-          // Fixed regardless of thumbnail presence, so rows don't jiggle
-          // in height as async thumbnails/logos pop in.
-          height: Style.space(48)
+          // Header band is fixed regardless of thumbnail presence or note
+          // expansion, so the row's top half never jiggles; only the
+          // overall delegate height grows to fit the note field below it.
+          height: itemRow.expanded ? Style.space(48) + noteField.height + Style.space(8) : Style.space(48)
           radius: Style.spacing.labelGap
-          color: rowHover.hovered ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "transparent"
+          color: (rowHover.hovered || itemRow.isCursor) ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "transparent"
           borderSpec: Border.none()
 
-          Row {
-            id: rowContent
+          Item {
+            id: headerBand
+            anchors.top: parent.top
             anchors.left: parent.left
             anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.leftMargin: itemRow.borderLeft + Style.space(8)
-            anchors.rightMargin: itemRow.borderRight + Style.space(8)
-            spacing: Style.space(8)
-
-            // Leading visual: thumbnail > tinted provider logo > kind glyph,
-            // in that priority order (#9/#10). A fixed thumbnail-shaped slot
-            // keeps row height stable whichever candidate ends up showing.
-            Item {
-              id: leadingSlot
-              width: Style.space(44)
-              height: Style.space(28)
-              anchors.verticalCenter: parent.verticalCenter
-
-              readonly property bool hasThumb: !!itemRow.it.thumbnailPath
-              readonly property bool thumbVisible: hasThumb && thumbImage.status === Image.Ready
-              readonly property bool logoVisible: !hasThumb && !!itemRow.providerEntry && logoImage.status === Image.Ready
-
-              // Hidden rounded-rect mask, sampled as a texture by the clip
-              // effect below — not rendered itself.
-              Rectangle {
-                id: thumbMask
-                anchors.fill: parent
-                radius: Style.spacing.labelGap
-                visible: false
-                layer.enabled: true
-              }
-
-              Item {
-                id: thumbClip
-                anchors.fill: parent
-                visible: leadingSlot.thumbVisible
-                layer.enabled: true
-                layer.smooth: true
-                layer.effect: MultiEffect {
-                  maskEnabled: true
-                  maskSource: thumbMask
-                }
-
-                Image {
-                  id: thumbImage
-                  anchors.fill: parent
-                  source: leadingSlot.hasThumb ? "file://" + itemRow.it.thumbnailPath : ""
-                  asynchronous: true
-                  fillMode: Image.PreserveAspectCrop
-                  sourceSize.width: Math.round(leadingSlot.width * Screen.devicePixelRatio)
-                  sourceSize.height: Math.round(leadingSlot.height * Screen.devicePixelRatio)
-                }
-              }
-
-              // Tinted provider logo — hidden source Image sampled by
-              // MultiEffect's colorization, same idiom as the shell's own
-              // tray icon recoloring (Tray.qml TrayIcon).
-              Image {
-                id: logoImage
-                anchors.fill: parent
-                anchors.margins: Style.space(4)
-                visible: false
-                layer.enabled: true
-                asynchronous: true
-                fillMode: Image.PreserveAspectFit
-                source: (!leadingSlot.hasThumb && itemRow.providerEntry) ? Qt.resolvedUrl(itemRow.providerEntry.logoAsset) : ""
-              }
-
-              MultiEffect {
-                anchors.fill: logoImage
-                source: logoImage
-                visible: leadingSlot.logoVisible
-                colorization: 1.0
-                colorizationColor: root.bar.foreground
-              }
-
-              // Fallback: shown whenever neither the thumbnail nor the
-              // tinted logo is actually on screen yet (including while
-              // either is still loading), so there's never a blank slot.
-              Text {
-                anchors.centerIn: parent
-                visible: !leadingSlot.thumbVisible && !leadingSlot.logoVisible
-                text: itemRow.kindGlyph
-                color: root.bar.foreground
-                font.family: root.bar.fontFamily
-                font.pixelSize: Style.font.body
-              }
-            }
-
-            Column {
-              width: parent.width - leadingSlot.width - rowContent.spacing - actions.width - Style.space(8)
-              spacing: Style.space(1)
-              anchors.verticalCenter: parent.verticalCenter
-
-              Text {
-                text: itemRow.it.title
-                color: root.bar.foreground
-                font.family: root.bar.fontFamily
-                font.pixelSize: Style.font.bodySmall
-                font.bold: true
-                elide: Text.ElideRight
-                width: parent.width
-              }
-
-              Text {
-                text: itemRow.caption
-                color: Qt.darker(root.bar.foreground, 1.5)
-                font.family: root.bar.fontFamily
-                font.pixelSize: Style.font.caption
-                elide: Text.ElideRight
-                width: parent.width
-                visible: text !== ""
-              }
-            }
+            height: Style.space(48)
 
             Row {
-              id: actions
-              spacing: Style.space(2)
+              id: rowContent
+              anchors.left: parent.left
+              anchors.right: parent.right
               anchors.verticalCenter: parent.verticalCenter
+              anchors.leftMargin: itemRow.borderLeft + Style.space(8)
+              anchors.rightMargin: itemRow.borderRight + Style.space(8)
+              spacing: Style.space(8)
 
-              Button {
-                iconText: "󰏌"
-                foreground: root.bar.foreground
-                iconSize: Style.font.bodySmall
-                horizontalPadding: Style.spacing.xs
-                verticalPadding: Style.spacing.xs
-                onClicked: {
-                  if (root.service) root.service.openItem(itemRow.it.id)
-                  root.close()
+              // Leading visual: thumbnail > tinted provider logo > kind glyph,
+              // in that priority order (#9/#10). A fixed thumbnail-shaped slot
+              // keeps row height stable whichever candidate ends up showing.
+              Item {
+                id: leadingSlot
+                width: Style.space(44)
+                height: Style.space(28)
+                anchors.verticalCenter: parent.verticalCenter
+
+                readonly property bool hasThumb: !!itemRow.it.thumbnailPath
+                readonly property bool thumbVisible: hasThumb && thumbImage.status === Image.Ready
+                readonly property bool logoVisible: !hasThumb && !!itemRow.providerEntry && logoImage.status === Image.Ready
+
+                // Hidden rounded-rect mask, sampled as a texture by the clip
+                // effect below — not rendered itself.
+                Rectangle {
+                  id: thumbMask
+                  anchors.fill: parent
+                  radius: Style.spacing.labelGap
+                  visible: false
+                  layer.enabled: true
+                }
+
+                Item {
+                  id: thumbClip
+                  anchors.fill: parent
+                  visible: leadingSlot.thumbVisible
+                  layer.enabled: true
+                  layer.smooth: true
+                  layer.effect: MultiEffect {
+                    maskEnabled: true
+                    maskSource: thumbMask
+                  }
+
+                  Image {
+                    id: thumbImage
+                    anchors.fill: parent
+                    source: leadingSlot.hasThumb ? "file://" + itemRow.it.thumbnailPath : ""
+                    asynchronous: true
+                    fillMode: Image.PreserveAspectCrop
+                    sourceSize.width: Math.round(leadingSlot.width * Screen.devicePixelRatio)
+                    sourceSize.height: Math.round(leadingSlot.height * Screen.devicePixelRatio)
+                  }
+                }
+
+                // Tinted provider logo — hidden source Image sampled by
+                // MultiEffect's colorization, same idiom as the shell's own
+                // tray icon recoloring (Tray.qml TrayIcon).
+                Image {
+                  id: logoImage
+                  anchors.fill: parent
+                  anchors.margins: Style.space(4)
+                  visible: false
+                  layer.enabled: true
+                  asynchronous: true
+                  fillMode: Image.PreserveAspectFit
+                  source: (!leadingSlot.hasThumb && itemRow.providerEntry) ? Qt.resolvedUrl(itemRow.providerEntry.logoAsset) : ""
+                }
+
+                MultiEffect {
+                  anchors.fill: logoImage
+                  source: logoImage
+                  visible: leadingSlot.logoVisible
+                  colorization: 1.0
+                  colorizationColor: root.bar.foreground
+                }
+
+                // Fallback: shown whenever neither the thumbnail nor the
+                // tinted logo is actually on screen yet (including while
+                // either is still loading), so there's never a blank slot.
+                Text {
+                  anchors.centerIn: parent
+                  visible: !leadingSlot.thumbVisible && !leadingSlot.logoVisible
+                  text: itemRow.kindGlyph
+                  color: root.bar.foreground
+                  font.family: root.bar.fontFamily
+                  font.pixelSize: Style.font.body
                 }
               }
 
-              Button {
-                iconText: itemRow.done ? "󰕌" : "󰄬"
-                foreground: root.bar.foreground
-                iconSize: Style.font.bodySmall
-                horizontalPadding: Style.spacing.xs
-                verticalPadding: Style.spacing.xs
-                onClicked: {
-                  if (!root.service) return
-                  if (itemRow.done) root.service.unmarkConsumed(itemRow.it.id)
-                  else root.service.markConsumed(itemRow.it.id)
+              Column {
+                width: parent.width - leadingSlot.width - rowContent.spacing - actions.width - Style.space(8)
+                spacing: Style.space(1)
+                anchors.verticalCenter: parent.verticalCenter
+
+                Text {
+                  text: itemRow.it.title
+                  color: root.bar.foreground
+                  font.family: root.bar.fontFamily
+                  font.pixelSize: Style.font.bodySmall
+                  font.bold: true
+                  elide: Text.ElideRight
+                  width: parent.width
+                }
+
+                Text {
+                  text: itemRow.caption
+                  color: Qt.darker(root.bar.foreground, 1.5)
+                  font.family: root.bar.fontFamily
+                  font.pixelSize: Style.font.caption
+                  elide: Text.ElideRight
+                  width: parent.width
+                  visible: text !== ""
                 }
               }
 
-              Button {
-                iconText: "󰩺"
-                foreground: root.bar.foreground
-                iconSize: Style.font.bodySmall
-                horizontalPadding: Style.spacing.xs
-                verticalPadding: Style.spacing.xs
-                onClicked: if (root.service) root.service.removeItem(itemRow.it.id)
-              }
+              Row {
+                id: actions
+                spacing: Style.space(2)
+                anchors.verticalCenter: parent.verticalCenter
 
-              // Retry (#8/#11): only surfaces once a resolve has actually
-              // failed. Deliberately no affordance for "pending" — a quiet
-              // in-flight state, not one that needs the user's attention.
-              Button {
-                visible: itemRow.it.resolveState === "failed"
-                iconText: "󰑐"
-                foreground: root.bar.foreground
-                iconSize: Style.font.bodySmall
-                horizontalPadding: Style.spacing.xs
-                verticalPadding: Style.spacing.xs
-                onClicked: if (root.service) root.service.resolveItem(itemRow.it.id)
+                Button {
+                  iconText: "󰏌"
+                  foreground: root.bar.foreground
+                  iconSize: Style.font.bodySmall
+                  horizontalPadding: Style.spacing.xs
+                  verticalPadding: Style.spacing.xs
+                  onClicked: {
+                    if (root.service) root.service.openItem(itemRow.it.id)
+                    root.close()
+                  }
+                }
+
+                Button {
+                  iconText: itemRow.done ? "󰕌" : "󰄬"
+                  foreground: root.bar.foreground
+                  iconSize: Style.font.bodySmall
+                  horizontalPadding: Style.spacing.xs
+                  verticalPadding: Style.spacing.xs
+                  onClicked: {
+                    if (!root.service) return
+                    if (itemRow.done) root.service.unmarkConsumed(itemRow.it.id)
+                    else root.service.markConsumed(itemRow.it.id)
+                  }
+                }
+
+                // Note toggle (#24): dims like disabled text when the item
+                // has nothing saved yet, so an empty note doesn't read as an
+                // active affordance.
+                Button {
+                  iconText: "󰎞"
+                  foreground: itemRow.it.notes ? root.bar.foreground : Qt.darker(root.bar.foreground, 1.5)
+                  iconSize: Style.font.bodySmall
+                  horizontalPadding: Style.spacing.xs
+                  verticalPadding: Style.spacing.xs
+                  onClicked: {
+                    var opening = !itemRow.expanded
+                    root.expandedId = opening ? itemRow.it.id : ""
+                    if (opening) noteField.forceActiveFocus()
+                  }
+                }
+
+                Button {
+                  iconText: "󰩺"
+                  foreground: root.bar.foreground
+                  iconSize: Style.font.bodySmall
+                  horizontalPadding: Style.spacing.xs
+                  verticalPadding: Style.spacing.xs
+                  onClicked: if (root.service) root.service.removeItem(itemRow.it.id)
+                }
+
+                // Retry (#8/#11): only surfaces once a resolve has actually
+                // failed. Deliberately no affordance for "pending" — a quiet
+                // in-flight state, not one that needs the user's attention.
+                Button {
+                  visible: itemRow.it.resolveState === "failed"
+                  iconText: "󰑐"
+                  foreground: root.bar.foreground
+                  iconSize: Style.font.bodySmall
+                  horizontalPadding: Style.spacing.xs
+                  verticalPadding: Style.spacing.xs
+                  onClicked: if (root.service) root.service.resolveItem(itemRow.it.id)
+                }
+              }
+            }
+
+            // Constrained to the header band (not the whole, possibly
+            // taller-when-expanded delegate) so a click in the note field
+            // below doesn't also open the item.
+            MouseArea {
+              id: rowHover
+              anchors.fill: parent
+              anchors.rightMargin: actions.width + Style.space(8)
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              property bool hovered: containsMouse
+              onClicked: {
+                if (root.service) root.service.openItem(itemRow.it.id)
+                root.close()
               }
             }
           }
 
-          MouseArea {
-            id: rowHover
-            anchors.fill: parent
-            anchors.rightMargin: actions.width + Style.space(8)
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            property bool hovered: containsMouse
-            onClicked: {
-              if (root.service) root.service.openItem(itemRow.it.id)
-              root.close()
+          // Note detail (#24): only takes delegate space when expanded —
+          // itemRow's height binding already accounts for noteField.height,
+          // so this doesn't need its own show/hide sizing logic.
+          TextField {
+            id: noteField
+            anchors.top: headerBand.bottom
+            anchors.topMargin: Style.space(4)
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.leftMargin: itemRow.borderLeft + Style.space(8)
+            anchors.rightMargin: itemRow.borderRight + Style.space(8)
+            visible: itemRow.expanded
+            placeholderText: "Add a note — why you saved this"
+            foreground: root.bar.foreground
+            text: itemRow.it.notes || ""
+            onAccepted: if (root.service) root.service.setNote(itemRow.it.id, text)
+            onEditingFinished: if (root.service) root.service.setNote(itemRow.it.id, text)
+            // Collapse back to the row list rather than letting Escape
+            // bubble up and close the whole popup mid-edit.
+            Keys.onEscapePressed: {
+              root.expandedId = ""
+              addField.forceActiveFocus()
             }
           }
         }

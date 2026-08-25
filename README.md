@@ -18,9 +18,40 @@ everything you've saved, filterable by All, Watch, Listen, Read, and Done.
 
 ## Capture
 
-Paste a URL into the popup's add field to save it now. A global hotkey for
-capturing straight from the clipboard — `SUPER+SHIFT+T`, backed by
-`scripts/tsundoku-add` — is coming in v0.2. That script doesn't exist yet.
+Two ways in:
+
+- **Hotkey.** Copy a URL anywhere and press `SUPER+SHIFT+U`.
+  `scripts/tsundoku-add` reads the clipboard with `wl-paste`, saves it over
+  IPC, and confirms with a "Saved to Tsundoku" notification. A non-URL
+  clipboard, a duplicate, or an unreachable shell each produce a clear error
+  toast instead — a keypress never fails silently.
+- **Popup.** Click the bar icon and paste into the add field. Enter or the
+  add button submits, the field clears on success, and an invalid or
+  duplicate URL shows inline feedback under the field.
+
+Bind the hotkey in `~/.config/hypr/bindings.lua`:
+
+```lua
+o.bind("SUPER + SHIFT + U", "Tsundoku capture",
+  os.getenv("HOME") .. "/.config/omarchy/plugins/william.tsundoku/scripts/tsundoku-add")
+```
+
+Pick any free chord — on a stock Omarchy install `SUPER+SHIFT+U` is
+unclaimed. Run `omarchy menu keybindings --print` to check yours.
+
+## IPC
+
+The service answers on the `tsundoku` IPC target:
+
+```bash
+omarchy-shell tsundoku add <url>   # prints "ok", "duplicate", or "invalid"
+omarchy-shell tsundoku count       # prints the unread count
+omarchy-shell tsundoku list        # prints the whole library as JSON
+omarchy-shell tsundoku ping        # prints "ok" — is the service alive?
+```
+
+`add` always exits 0 when the shell is reachable; what happened is in the
+printed result. A non-zero exit means the shell itself wasn't running.
 
 ## Storage
 

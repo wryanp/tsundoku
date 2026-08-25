@@ -62,16 +62,18 @@ Item {
     return null
   }
 
+  // Returns "ok", "duplicate", or "invalid" — the popup and the IPC add
+  // both surface these distinctly, so callers can tell what happened.
   function addUrl(url) {
     var trimmed = String(url || "").trim()
-    if (!/^https?:\/\//i.test(trimmed)) return false
+    if (!/^https?:\/\//i.test(trimmed)) return "invalid"
 
     for (var i = 0; i < root.items.length; i++) {
-      if (root.items[i].url === trimmed) return false
+      if (root.items[i].url === trimmed) return "duplicate"
     }
 
     var host = root.hostFromUrl(trimmed)
-    if (!host) return false
+    if (!host) return "invalid"
 
     var item = {
       id: root.makeId(),
@@ -89,7 +91,7 @@ Item {
 
     root.items = [item].concat(root.items)
     root.saveLibrary()
-    return true
+    return "ok"
   }
 
   function markConsumed(id) {
@@ -167,7 +169,7 @@ Item {
     }
 
     function add(url: string): string {
-      return root.addUrl(url) ? "ok" : "duplicate-or-invalid"
+      return root.addUrl(url)
     }
 
     function count(): string {

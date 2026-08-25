@@ -1,0 +1,68 @@
+#!/bin/bash
+#
+# tsundoku-add — save the URL currently on the clipboard to Tsundoku.
+#
+# Reads the clipboard with wl-paste, validates it looks like a URL, and hands
+# it to the running shell service over IPC (`omarchy-shell tsundoku add`).
+# Every outcome — saved, duplicate, not a link, shell unreachable — surfaces
+# as a notification, so a hotkey press never fails silently.
+#
+# Bind it in ~/.config/hypr/bindings.lua:
+#   o.bind("SUPER + SHIFT + U", "Tsundoku capture",
+#          os.getenv("HOME") .. "/.config/omarchy/plugins/william.tsundoku/scripts/tsundoku-add")
+
+notify() {
+  # Replace any previous tsundoku notification instead of stacking them,
+  # so mashing the hotkey doesn't pile up toasts.
+  notify-send -a Tsundoku -t 3000 \
+    -h string:x-canonical-private-synchronous:tsundoku-add "$1" "$2"
+}
+
+clip="$(wl-paste --no-newline 2>/dev/null)"
+# Trim surrounding whitespace.
+clip="${clip#"${clip%%[![:space:]]*}"}"
+clip="${clip%"${clip##*[![:space:]]}"}"
+
+if [[ -z "$clip" ]]; then
+  notify "Nothing to save" "The clipboard is empty."
+  exit 1
+fi
+
+if [[ ! "$clip" =~ ^https?:// ]]; then
+  preview="${clip:0:60}"
+  [[ ${#clip} -gt 60 ]] && preview+="…"
+  notify "Not a link" "Clipboard: $preview"
+  exit 1
+fi
+
+# The IPC call prints the service's return value and exits 0 either way;
+# a non-zero exit means the shell itself wasn't reachable.
+if ! result="$(omarchy-shell tsundoku add "$clip" 2>/dev/null)"; then
+  notify "Tsundoku isn't running" "Couldn't reach the shell service."
+  exit 1
+fi
+
+# Bare host for the toast: strip scheme, path, userinfo, port, and www.
+host="${clip#*://}"
+host="${host%%[/?#]*}"
+host="${host##*@}"
+host="${host%%:*}"
+host="${host#www.}"
+
+case "$result" in
+  ok)
+    notify "Saved to Tsundoku" "$host"
+    ;;
+  duplicate)
+    notify "Already in your pile" "$host"
+    exit 1
+    ;;
+  invalid)
+    notify "Not a link" "Tsundoku rejected: ${clip:0:60}"
+    exit 1
+    ;;
+  *)
+    notify "Tsundoku isn't running" "Couldn't reach the shell service."
+    exit 1
+    ;;
+esac

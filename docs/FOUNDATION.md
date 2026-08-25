@@ -98,7 +98,9 @@ tiers, each a fallback for the one before it:
 
 - **v0.1** — Scaffold: service, bar widget, and popup with bare-URL capture.
   No metadata resolution yet.
-- **v0.2** — Clipboard capture hotkey (`SUPER+SHIFT+T`) and IPC-driven add.
+- **v0.2** — Clipboard capture hotkey (`SUPER+SHIFT+U`) and IPC-driven add.
+  (Originally planned as `SUPER+SHIFT+T`, which collides with Omarchy's
+  btop/Activity binding on some setups.)
 - **v0.3** — Provider registry with oEmbed and OpenGraph resolution, provider
   logos, and thumbnail caching.
 - **v0.4** — Per-provider open actions (launch mpv, Spotify, browser, etc.

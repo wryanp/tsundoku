@@ -32,16 +32,22 @@ The service registers an `IpcHandler` under the target name `tsundoku`,
 reachable as:
 
 ```
-omarchy-shell tsundoku add <url>
+omarchy-shell tsundoku add <url>   # prints "ok" | "duplicate" | "invalid"
 omarchy-shell tsundoku count
 omarchy-shell tsundoku list
 omarchy-shell tsundoku ping
 ```
 
-This is the path the v0.2 hotkey capture uses: `scripts/tsundoku-add` will
-read the clipboard and call `omarchy-shell tsundoku add <url>`, letting the
-already-running shell process do the work instead of spinning up anything
-new.
+`add` returns a distinct result for each outcome so callers can react;
+the IPC call itself exits 0 whenever the shell is reachable, so scripts
+must read the printed result, not the exit code.
+
+This is the path the hotkey capture uses: `scripts/tsundoku-add` reads the
+clipboard with `wl-paste`, validates it as a URL, and calls
+`omarchy-shell tsundoku add <url>`, letting the already-running shell
+process do the work instead of spinning up anything new. Every outcome is
+surfaced via `notify-send` (with a synchronous hint so repeated presses
+replace the toast rather than stacking).
 
 ## Storage
 

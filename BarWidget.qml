@@ -15,6 +15,17 @@ BarWidget {
   property bool popupOpen: false
   property string filter: "all"
 
+  // Inline feedback for the add field: "" when clean, otherwise a short
+  // human message for the invalid/duplicate cases.
+  property string addError: ""
+
+  // Reset feedback on open/close, and focus the add field on open so the
+  // popup is paste-ready without a click.
+  onPopupOpenChanged: {
+    root.addError = ""
+    if (root.popupOpen) addField.forceActiveFocus()
+  }
+
   // open/close/opened form the bar host's summon contract, so
   // `omarchy-shell shell toggle william.tsundoku` can drive the popup
   // from a Hyprland keybinding without a separate panel kind.
@@ -31,7 +42,16 @@ BarWidget {
 
   function tryAdd() {
     if (!root.service) return
-    if (root.service.addUrl(addField.text)) addField.text = ""
+    if (addField.text.trim() === "") return
+    var result = root.service.addUrl(addField.text)
+    if (result === "ok") {
+      addField.text = ""
+      root.addError = ""
+    } else if (result === "duplicate") {
+      root.addError = "Already in your pile"
+    } else {
+      root.addError = "Not a link — paste a full URL"
+    }
   }
 
   visible: true
@@ -103,6 +123,7 @@ BarWidget {
           placeholderText: "Paste a URL…"
           foreground: root.bar.foreground
           onAccepted: root.tryAdd()
+          onTextChanged: root.addError = ""
         }
 
         Button {
@@ -114,6 +135,16 @@ BarWidget {
           verticalPadding: Style.spacing.controlPaddingY
           onClicked: root.tryAdd()
         }
+      }
+
+      Text {
+        visible: root.addError !== ""
+        width: parent.width
+        text: root.addError
+        color: Color.urgent
+        font.family: root.bar.fontFamily
+        font.pixelSize: Style.font.caption
+        elide: Text.ElideRight
       }
 
       Row {

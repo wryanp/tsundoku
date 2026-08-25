@@ -1,8 +1,10 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Effects
 import Quickshell
 import qs.Ui
 import qs.Commons
+import "Providers.js" as Providers
 
 BarWidget {
   id: root
@@ -11,6 +13,17 @@ BarWidget {
   readonly property var service: bar?.shell?.serviceFor("william.tsundoku")
   readonly property var items: service ? service.items : []
   readonly property int unreadCount: service ? service.unreadCount : 0
+
+  // Scanned once here rather than per-delegate.
+  readonly property var providerEntries: Providers.all()
+
+  function providerEntryFor(providerId) {
+    if (!providerId) return null
+    for (var i = 0; i < root.providerEntries.length; i++) {
+      if (root.providerEntries[i].id === providerId) return root.providerEntries[i]
+    }
+    return null
+  }
 
   property bool popupOpen: false
   property string filter: "all"
@@ -198,10 +211,14 @@ BarWidget {
           readonly property var it: modelData
           readonly property bool done: !!it.consumedAt
           readonly property string kindGlyph: it.kind === "watch" ? "󰕧" : it.kind === "listen" ? "󰋋" : "󰈙"
-          readonly property string caption: it.author ? (it.provider + " · " + it.author) : it.provider
+          readonly property var providerEntry: root.providerEntryFor(it.provider)
+          readonly property string providerLabel: providerEntry ? providerEntry.displayName : it.provider
+          readonly property string caption: it.author ? (providerLabel + " · " + it.author) : providerLabel
 
           width: ListView.view.width
-          height: rowContent.implicitHeight + Style.space(10)
+          // Fixed regardless of thumbnail presence, so rows don't jiggle
+          // in height as async thumbnails/logos pop in.
+          height: Style.space(48)
           radius: Style.spacing.labelGap
           color: rowHover.hovered ? Style.hoverFillFor(root.bar.foreground, Color.accent) : "transparent"
           borderSpec: Border.none()
@@ -215,18 +232,88 @@ BarWidget {
             anchors.rightMargin: itemRow.borderRight + Style.space(8)
             spacing: Style.space(8)
 
-            Text {
-              text: itemRow.kindGlyph
-              color: root.bar.foreground
-              font.family: root.bar.fontFamily
-              font.pixelSize: Style.font.body
-              width: Style.space(18)
-              horizontalAlignment: Text.AlignHCenter
+            // Leading visual: thumbnail > tinted provider logo > kind glyph,
+            // in that priority order (#9/#10). A fixed thumbnail-shaped slot
+            // keeps row height stable whichever candidate ends up showing.
+            Item {
+              id: leadingSlot
+              width: Style.space(44)
+              height: Style.space(28)
               anchors.verticalCenter: parent.verticalCenter
+
+              readonly property bool hasThumb: !!itemRow.it.thumbnailPath
+              readonly property bool thumbVisible: hasThumb && thumbImage.status === Image.Ready
+              readonly property bool logoVisible: !hasThumb && !!itemRow.providerEntry && logoImage.status === Image.Ready
+
+              // Hidden rounded-rect mask, sampled as a texture by the clip
+              // effect below — not rendered itself.
+              Rectangle {
+                id: thumbMask
+                anchors.fill: parent
+                radius: Style.spacing.labelGap
+                visible: false
+                layer.enabled: true
+              }
+
+              Item {
+                id: thumbClip
+                anchors.fill: parent
+                visible: leadingSlot.thumbVisible
+                layer.enabled: true
+                layer.smooth: true
+                layer.effect: MultiEffect {
+                  maskEnabled: true
+                  maskSource: thumbMask
+                }
+
+                Image {
+                  id: thumbImage
+                  anchors.fill: parent
+                  source: leadingSlot.hasThumb ? "file://" + itemRow.it.thumbnailPath : ""
+                  asynchronous: true
+                  fillMode: Image.PreserveAspectCrop
+                  sourceSize.width: Math.round(leadingSlot.width * Screen.devicePixelRatio)
+                  sourceSize.height: Math.round(leadingSlot.height * Screen.devicePixelRatio)
+                }
+              }
+
+              // Tinted provider logo — hidden source Image sampled by
+              // MultiEffect's colorization, same idiom as the shell's own
+              // tray icon recoloring (Tray.qml TrayIcon).
+              Image {
+                id: logoImage
+                anchors.fill: parent
+                anchors.margins: Style.space(4)
+                visible: false
+                layer.enabled: true
+                asynchronous: true
+                fillMode: Image.PreserveAspectFit
+                source: (!leadingSlot.hasThumb && itemRow.providerEntry) ? Qt.resolvedUrl(itemRow.providerEntry.logoAsset) : ""
+              }
+
+              MultiEffect {
+                anchors.fill: logoImage
+                source: logoImage
+                visible: leadingSlot.logoVisible
+                colorization: 1.0
+                colorizationColor: root.bar.foreground
+              }
+
+              // Fallback: shown whenever neither the thumbnail nor the
+              // tinted logo is actually on screen yet (including while
+              // either is still loading), so there's never a blank slot.
+              Text {
+                anchors.centerIn: parent
+                visible: !leadingSlot.thumbVisible && !leadingSlot.logoVisible
+                text: itemRow.kindGlyph
+                color: root.bar.foreground
+                font.family: root.bar.fontFamily
+                font.pixelSize: Style.font.body
+              }
             }
 
             Column {
-              width: parent.width - Style.space(26) - actions.width - Style.space(8)
+              width: parent.width - leadingSlot.width - rowContent.spacing - actions.width - Style.space(8)
               spacing: Style.space(1)
               anchors.verticalCenter: parent.verticalCenter
 
@@ -288,6 +375,19 @@ BarWidget {
                 horizontalPadding: Style.spacing.xs
                 verticalPadding: Style.spacing.xs
                 onClicked: if (root.service) root.service.removeItem(itemRow.it.id)
+              }
+
+              // Retry (#8/#11): only surfaces once a resolve has actually
+              // failed. Deliberately no affordance for "pending" — a quiet
+              // in-flight state, not one that needs the user's attention.
+              Button {
+                visible: itemRow.it.resolveState === "failed"
+                iconText: "󰑐"
+                foreground: root.bar.foreground
+                iconSize: Style.font.bodySmall
+                horizontalPadding: Style.spacing.xs
+                verticalPadding: Style.spacing.xs
+                onClicked: if (root.service) root.service.resolveItem(itemRow.it.id)
               }
             }
           }

@@ -56,8 +56,9 @@ newest item first. On every mutation the service reassigns the array
 property wholesale (rather than mutating in place) so QML's property
 bindings pick up the change, and persists it to disk immediately.
 
-Thumbnails, once resolution lands in v0.3, cache to
-`~/.local/share/tsundoku/thumbs/` as hash-named image files.
+Thumbnails cache to `~/.local/share/tsundoku/thumbs/`, named by the SHA-256
+of the source image URL. `removeItem` deletes an item's cached thumbnail
+file (only ever inside that cache dir, never elsewhere) when the item goes.
 
 Nothing runtime lives in the plugin's own repo directory. The git checkout
 under `~/.config/omarchy/plugins/william.tsundoku/` is code only.
@@ -70,19 +71,55 @@ and bar contexts; spacing, font scale, corner radius, and state fills (via
 `Style` tokens. Provider logos (v0.3) are monochrome SVGs tinted at render
 time against the active theme, rather than shipped as pre-colored assets.
 
-## Planned resolver pipeline (v0.3)
+## Resolver pipeline (v0.3)
 
-Providers live in a registry table, one entry per provider:
+`Providers.js` is the registry, one entry per provider:
 
 ```
 { id, displayName, kind, domains, logoAsset, resolver, openAction }
 ```
 
-Resolution shells out through Quickshell's `Io.Process` to `curl`, capped
-with `--max-time 5` and a response size limit. oEmbed responses are consumed
-strictly as metadata — `title`, `thumbnail_url`, `author_name` — and the
-`html` embed field is never touched, in line with the never-embed-a-webview
-principle.
+`Providers.match(url)` picks an entry by domain (exact match wins over a
+suffix match, so `music.youtube.com` doesn't fall into `youtube`'s
+`youtube.com` entry); `addUrl` uses it to set `item.provider`/`item.kind`,
+falling back to the old bare-host guess when nothing matches.
+
+`addUrl` returns "ok" immediately — resolution runs asynchronously, so
+callers never block on network I/O. The service spawns one `Process` per
+item running `scripts/tsundoku-resolve`, which tries three tiers in order:
+oEmbed (when the matched provider has one), OpenGraph scraping of the page
+itself, and a bare-hostname title as the last resort. oEmbed responses are
+consumed strictly as metadata — `title`, `thumbnail_url`, `author_name` —
+the `html` embed field is never touched, in line with the
+never-embed-a-webview principle. Each fetch is capped with `--max-time 5`
+and a 256 KiB response limit; the script always exits 0 and prints exactly
+one line of JSON, so a resolution failure never surfaces as a process error
+to the service.
+
+Every item carries `resolveState`: `"pending"` while its Process is in
+flight, `"resolved"` once oEmbed or OpenGraph actually produced a title,
+`"failed"` otherwise — including the bare-host fallback tier, so it stays
+retriable. The popup shows a retry action only on `"failed"` items, calling
+the service's public `resolveItem(id)` directly; `"pending"` gets no
+affordance, it's a quiet state. On the first successful library load, the
+service also re-resolves every unconsumed item whose state is missing
+(pre-0.3 libraries never had the field) or `"pending"` (a resolve an
+interrupted shell restart left hanging) — `"failed"` items are left alone,
+that retry is manual only. A one-shot flag stops this pass from replaying
+on every `saveLibrary()`-triggered file reload.
+
+Thumbnails download to `~/.local/share/tsundoku/thumbs/`, named by the
+SHA-256 of the source image URL so a repeat resolve is a cache hit rather
+than a re-fetch. `removeItem` deletes an item's cached thumbnail file when
+it lives inside that cache dir.
+
+Provider logos are monochrome SVGs (`assets/logos/`) tinted at render
+time: a hidden `Image` sampled through `MultiEffect { colorization: 1.0;
+colorizationColor: root.bar.foreground }`, the same idiom the shell's own
+tray icons use for symbolic icons. The bar widget shows a resolved
+thumbnail when there is one, the tinted logo otherwise, and the plain kind
+glyph as the fallback while either is still loading — so there's never a
+flash of an untinted or broken image.
 
 ## Planned auth (v0.5)
 

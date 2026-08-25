@@ -39,6 +39,20 @@ o.bind("SUPER + SHIFT + U", "Tsundoku capture",
 Pick any free chord — on a stock Omarchy install `SUPER+SHIFT+U` is
 unclaimed. Run `omarchy menu keybindings --print` to check yours.
 
+## Previews
+
+A saved link resolves into a real title, author, and thumbnail in the
+background — the item appears instantly and upgrades in place. Resolution
+tries three tiers in order: the platform's official oEmbed endpoint
+(YouTube, Vimeo, Spotify, SoundCloud, TikTok), then OpenGraph tags scraped
+from the page, then the bare hostname. Every request runs a 5-second
+timeout, a size cap, and an honest User-Agent, and nothing ever fails to
+save because resolution failed — a link that can't be resolved keeps its
+hostname title and shows a retry button.
+
+Items from recognized platforms show that platform's logo, tinted to your
+theme's foreground color. Everything else gets a watch/listen/read glyph.
+
 ## IPC
 
 The service answers on the `tsundoku` IPC target:
@@ -87,4 +101,7 @@ roadmap, and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how it's built.
 
 ## License
 
-MIT
+MIT. The provider logos under `assets/logos/` come from
+[Simple Icons](https://simpleicons.org) (CC0); the brand marks themselves
+remain the property of their respective owners — see
+`assets/logos/ATTRIBUTION.md`.

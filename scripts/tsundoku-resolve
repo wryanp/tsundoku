@@ -1,0 +1,292 @@
+#!/bin/bash
+#
+# tsundoku-resolve — turn a saved URL into title/author/thumbnail metadata.
+#
+# Called once per saved item by the QML service. Tries three tiers, each a
+# fallback for the one before it: oEmbed (if the caller hands us a
+# provider's endpoint), OpenGraph scraping of the page itself, and finally
+# a bare hostname title. Whatever happens, this always exits 0 and prints
+# exactly one line of JSON — a resolution failure is not an error to the
+# caller (that's the whole point of having a fallback tier), only a
+# malformed invocation is.
+#
+# Usage: tsundoku-resolve --thumbs-dir DIR [--oembed ENDPOINT_URL] <url>
+
+UA="tsundoku/0.3 (+https://github.com/wryanp/tsundoku)"
+CURL_OPTS=(--max-time 5 -sS -L --fail -A "$UA")
+
+usage() {
+  echo "Usage: tsundoku-resolve --thumbs-dir DIR [--oembed ENDPOINT_URL] <url>" >&2
+  exit 1
+}
+
+thumbs_dir=""
+oembed_url=""
+url=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --thumbs-dir)
+      thumbs_dir="$2"
+      shift 2
+      ;;
+    --oembed)
+      oembed_url="$2"
+      shift 2
+      ;;
+    *)
+      url="$1"
+      shift
+      ;;
+  esac
+done
+
+[[ -n "$thumbs_dir" && -n "$url" ]] || usage
+
+# --- entity decoding -------------------------------------------------------
+
+# Decode the fixed set of named entities the spec calls out, then any
+# numeric &#NNN; / &#xHH; forms. &amp; is decoded last so it can't eat the
+# leading "&" of an entity that itself failed to fully decode above it.
+decode_entities() {
+  local s="$1"
+  s="${s//&lt;/<}"
+  s="${s//&gt;/>}"
+  s="${s//&quot;/\"}"
+  s="${s//&#39;/\'}"
+  s="${s//&#x27;/\'}"
+  s="${s//&#X27;/\'}"
+  s="${s//&nbsp;/ }"
+  # The backslash before & is load-bearing: bash's ${var//pat/rep} treats
+  # a bare & in the replacement specially (silently no-ops the whole
+  # substitution) unless it's escaped.
+  s="${s//&amp;/\&}"
+
+  local hex8 char
+  # Decimal numeric entities, e.g. &#8217;
+  while [[ "$s" =~ \&#([0-9]+)\; ]]; do
+    hex8="$(printf '%08x' "${BASH_REMATCH[1]}")"
+    # \U needs 8 hex digits directly in the format string — building it via
+    # string concat (not a %-spec) is what makes bash's printf treat it as
+    # a real unicode escape instead of erroring "missing unicode digit".
+    char="$(printf "\\U${hex8}" 2>/dev/null)"
+    s="${s/${BASH_REMATCH[0]}/$char}"
+  done
+  # Hex numeric entities, e.g. &#x2019;
+  while [[ "$s" =~ \&#[xX]([0-9a-fA-F]+)\; ]]; do
+    hex8="$(printf '%08x' "$((16#${BASH_REMATCH[1]}))")"
+    char="$(printf "\\U${hex8}" 2>/dev/null)"
+    s="${s/${BASH_REMATCH[0]}/$char}"
+  done
+
+  printf '%s' "$s"
+}
+
+trim() {
+  local s="$1"
+  s="${s#"${s%%[![:space:]]*}"}"
+  s="${s%"${s##*[![:space:]]}"}"
+  printf '%s' "$s"
+}
+
+# --- networking --------------------------------------------------------
+
+# Fetches $1 with curl, capped to 256 KiB via `head -c`. Leaves the body in
+# $body and curl's real exit code in $fetch_status. This deliberately does
+# NOT use `body="$(curl ... | head ...)"` — that form runs the pipeline in
+# a subshell, so $PIPESTATUS read afterward belongs to the wrong shell and
+# never reflects curl. Routing through a temp file keeps the pipeline (and
+# its PIPESTATUS) in this shell so we can tell "curl failed" apart from
+# "curl got SIGPIPE because head closed the read end at 256 KiB" (exit 23,
+# which we tolerate — it's the size cap working as intended).
+fetch_capped() {
+  local tmp
+  tmp="$(mktemp)"
+  curl "${CURL_OPTS[@]}" "$1" 2>/dev/null | head -c 262144 >"$tmp"
+  fetch_status=${PIPESTATUS[0]}
+  body="$(cat "$tmp")"
+  rm -f "$tmp"
+}
+
+# --- OpenGraph extraction -----------------------------------------------
+
+# Pulls content="..." out of <meta property="$2" content="..."> in either
+# attribute order and either quote style. Two passes, property-then-content
+# and content-then-property; whichever the page actually used wins.
+get_meta() {
+  local html="$1" key="$2" val
+  val="$(printf '%s' "$html" | grep -ioP "<meta\b[^>]*\bproperty=[\"']${key}[\"'][^>]*\bcontent=[\"']\K[^\"']*" | head -1)"
+  if [[ -z "$val" ]]; then
+    val="$(printf '%s' "$html" | grep -ioP "<meta\b[^>]*\bcontent=[\"']\K[^\"']*(?=[^>]*\bproperty=[\"']${key}[\"'])" | head -1)"
+  fi
+  printf '%s' "$val"
+}
+
+# Protocol-relative (//host/img) becomes https:, root-relative (/img)
+# resolves against the page's own scheme+host, anything else is passed
+# through as-is (already absolute, or a relative form we don't special-case).
+resolve_image_url() {
+  local img="$1"
+  case "$img" in
+    //*) printf 'https:%s' "$img" ;;
+    /*) printf '%s%s' "$page_base" "$img" ;;
+    *) printf '%s' "$img" ;;
+  esac
+}
+
+# --- thumbnail caching ---------------------------------------------------
+
+# Downloads $1 into $2/<sha256 of the URL>.<ext>, skipping the fetch entirely
+# if that file already exists and is non-empty (cache hit). Prints the dest
+# path and returns 0 on success (including a cache hit); on any failure
+# removes the partial file and returns 1.
+download_thumbnail() {
+  local thumb_url="$1" dir="$2"
+  mkdir -p "$dir" 2>/dev/null
+
+  local hash path_no_query no_scheme path_only ext_candidate ext dest
+  hash="$(printf '%s' "$thumb_url" | sha256sum | cut -d' ' -f1)"
+
+  path_no_query="${thumb_url%%[?#]*}"
+  no_scheme="${path_no_query#*://}"
+  path_only="${no_scheme#*/}"
+  ext_candidate=""
+  # Only look for an extension if there was an actual path segment past the
+  # host — otherwise "${path_only##*.}" would fall back to a dot in the
+  # hostname itself (e.g. "example.com") and misread that as an extension.
+  if [[ "$path_only" != "$no_scheme" ]]; then
+    ext_candidate="${path_only##*.}"
+    ext_candidate="$(printf '%s' "$ext_candidate" | tr '[:upper:]' '[:lower:]')"
+  fi
+  case "$ext_candidate" in
+    jpg | jpeg | png | webp | gif) ext="$ext_candidate" ;;
+    *) ext="jpg" ;;
+  esac
+
+  dest="$dir/$hash.$ext"
+  if [[ -s "$dest" ]]; then
+    printf '%s' "$dest"
+    return 0
+  fi
+
+  if curl --max-time 5 -sS -L --fail -A "$UA" --max-filesize 5242880 -o "$dest" "$thumb_url" 2>/dev/null && [[ -s "$dest" ]]; then
+    printf '%s' "$dest"
+    return 0
+  fi
+
+  rm -f "$dest" 2>/dev/null
+  return 1
+}
+
+# --- resolution tiers ------------------------------------------------------
+
+title=""
+author=""
+description=""
+siteName=""
+thumb_source_url=""
+
+# Tier 1: oEmbed. Only the plain metadata fields are ever read — the
+# spec's `html` embed field is never touched.
+resolve_oembed() {
+  fetch_capped "$oembed_url"
+  if [[ $fetch_status -ne 0 && $fetch_status -ne 23 ]]; then
+    return 1
+  fi
+  [[ -z "$body" ]] && return 1
+  jq -e . >/dev/null 2>&1 <<<"$body" || return 1
+
+  local raw_title raw_author raw_thumb
+  raw_title="$(jq -r '.title // empty' <<<"$body" 2>/dev/null)"
+  [[ -z "$raw_title" ]] && return 1
+  raw_author="$(jq -r '.author_name // empty' <<<"$body" 2>/dev/null)"
+  raw_thumb="$(jq -r '.thumbnail_url // empty' <<<"$body" 2>/dev/null)"
+
+  title="$(trim "$raw_title")"
+  author="$(trim "$raw_author")"
+  thumb_source_url="$raw_thumb"
+  return 0
+}
+
+# Tier 2: OpenGraph / meta-tag scraping of the page itself.
+resolve_opengraph() {
+  fetch_capped "$url"
+  if [[ $fetch_status -ne 0 && $fetch_status -ne 23 ]]; then
+    return 1
+  fi
+  [[ -z "$body" ]] && return 1
+
+  # Flatten to one line first: pretty-printed HTML can split a <meta ...>
+  # tag's attributes across lines, and grep -P's default mode is per-line.
+  local flat
+  flat="$(printf '%s' "$body" | tr '\n\r' '  ')"
+
+  local og_title og_image og_desc og_site article_author
+  og_title="$(get_meta "$flat" "og:title")"
+  og_image="$(get_meta "$flat" "og:image")"
+  og_desc="$(get_meta "$flat" "og:description")"
+  og_site="$(get_meta "$flat" "og:site_name")"
+  article_author="$(get_meta "$flat" "article:author")"
+
+  if [[ -z "$og_title" ]]; then
+    og_title="$(printf '%s' "$flat" | grep -ioP '(?<=<title>).*?(?=</title>)' | head -1)"
+  fi
+  [[ -z "$og_title" ]] && return 1
+
+  title="$(trim "$(decode_entities "$og_title")")"
+  author="$(trim "$(decode_entities "$article_author")")"
+  description="$(trim "$(decode_entities "$og_desc")")"
+  siteName="$(trim "$(decode_entities "$og_site")")"
+
+  if [[ -n "$og_image" ]]; then
+    # URLs can legitimately contain HTML-entity-escaped query strings
+    # (e.g. Wikimedia's "...?utm_source=x&amp;utm_campaign=y"), so decode
+    # before this is ever handed to curl.
+    thumb_source_url="$(resolve_image_url "$(decode_entities "$og_image")")"
+  fi
+  return 0
+}
+
+# scheme://host of the page URL, used to resolve root-relative og:image URLs.
+scheme="${url%%://*}"
+host_and_rest="${url#*://}"
+host_only="${host_and_rest%%/*}"
+page_base="$scheme://$host_only"
+
+if [[ -n "$oembed_url" ]] && resolve_oembed; then
+  tier="oembed"
+  status="resolved"
+elif resolve_opengraph; then
+  tier="opengraph"
+  status="resolved"
+else
+  tier="bare"
+  status="bare"
+  # Bare host: strip scheme, path, userinfo, port, and www. — same recipe
+  # tsundoku-add uses for its notification toast.
+  bare_host="${url#*://}"
+  bare_host="${bare_host%%[/?#]*}"
+  bare_host="${bare_host##*@}"
+  bare_host="${bare_host%%:*}"
+  bare_host="${bare_host#www.}"
+  title="$bare_host"
+fi
+
+thumbnailPath=""
+if [[ -n "$thumb_source_url" ]]; then
+  if dest="$(download_thumbnail "$thumb_source_url" "$thumbs_dir")"; then
+    thumbnailPath="$dest"
+  fi
+fi
+
+jq -nc \
+  --arg status "$status" \
+  --arg tier "$tier" \
+  --arg title "$title" \
+  --arg author "$author" \
+  --arg description "$description" \
+  --arg siteName "$siteName" \
+  --arg thumbnailPath "$thumbnailPath" \
+  '{status: $status, tier: $tier, title: $title, author: $author, description: $description, siteName: $siteName, thumbnailPath: $thumbnailPath}'
+
+exit 0

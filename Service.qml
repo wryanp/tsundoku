@@ -1,12 +1,14 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "Providers.js" as Providers
 
 // Headless service: sole owner of the tsundoku library. The bar widget
 // (and any future UI) finds this via shell.serviceFor("william.tsundoku")
 // and binds to items/unreadCount, calling the mutator functions below.
-// Step 1 scaffold: bare-fallback metadata only, no provider resolution,
-// no thumbnails, no network calls.
+// Provider matching is data-driven (Providers.js); metadata resolution
+// (title/author/thumbnail) runs asynchronously per item via
+// scripts/tsundoku-resolve — see resolveItem below.
 Item {
   id: root
 
@@ -18,9 +20,23 @@ Item {
   property string thumbsDir: root.dataDir + "/thumbs"
   property string libraryPath: root.dataDir + "/library.json"
 
+  // Absolute path to the resolve script, derived from this file's own
+  // location so it works regardless of where the plugin checkout lives.
+  readonly property string resolveScriptPath: String(Qt.resolvedUrl("scripts/tsundoku-resolve")).replace(/^file:\/\//, "")
+
   // Full library, newest first. Reassigned wholesale on every mutation so
   // QML bindings (in-place array mutation is invisible to them) pick it up.
   property var items: []
+
+  // ids currently being resolved — guards a retry racing an in-flight
+  // resolve, and a reload racing the startup re-resolution pass.
+  property var resolvingIds: ({})
+
+  // Set once the startup/migration re-resolution pass has run. Guards
+  // against libraryFile's watchChanges -> onFileChanged -> reload ->
+  // loadLibrary loop (every saveLibrary() triggers one) replaying the pass
+  // on every single save.
+  property bool autoResolveDone: false
 
   readonly property int unreadCount: {
     var count = 0
@@ -62,6 +78,15 @@ Item {
     return null
   }
 
+  function providerEntryFor(providerId) {
+    if (!providerId) return null
+    var entries = Providers.all()
+    for (var i = 0; i < entries.length; i++) {
+      if (entries[i].id === providerId) return entries[i]
+    }
+    return null
+  }
+
   // Returns "ok", "duplicate", or "invalid" — the popup and the IPC add
   // both surface these distinctly, so callers can tell what happened.
   function addUrl(url) {
@@ -75,23 +100,137 @@ Item {
     var host = root.hostFromUrl(trimmed)
     if (!host) return "invalid"
 
+    var matched = Providers.match(trimmed)
+
     var item = {
       id: root.makeId(),
       url: trimmed,
-      provider: host,
-      kind: root.guessKind(host),
+      provider: matched ? matched.id : host,
+      kind: matched ? matched.kind : root.guessKind(host),
       title: host,
       author: "",
       thumbnailPath: "",
       durationSeconds: null,
       addedAt: new Date().toISOString(),
       consumedAt: null,
-      notes: ""
+      notes: "",
+      resolveState: "pending"
     }
 
     root.items = [item].concat(root.items)
     root.saveLibrary()
+    root.resolveItem(item.id)
     return "ok"
+  }
+
+  // Kicks off async resolution for one item: spawns tsundoku-resolve and,
+  // on completion, merges title/author/thumbnailPath and sets resolveState.
+  // Public (not just internal) so the popup's retry button can call it
+  // directly on a previously-failed item. No-ops if the item is already
+  // being resolved.
+  function resolveItem(id) {
+    var item = root.findItem(id)
+    if (!item) return
+    if (root.resolvingIds[id]) return
+    root.resolvingIds[id] = true
+
+    root.items = root.items.map(function(it) {
+      if (it.id !== id) return it
+      var copy = {}
+      for (var k in it) copy[k] = it[k]
+      copy.resolveState = "pending"
+      return copy
+    })
+
+    var args = [root.resolveScriptPath, "--thumbs-dir", root.thumbsDir]
+    var entry = root.providerEntryFor(item.provider)
+    if (entry && entry.resolver && entry.resolver.type === "oembed" && entry.resolver.endpoint) {
+      var endpoint = entry.resolver.endpoint.replace("{url}", encodeURIComponent(item.url))
+      args.push("--oembed", endpoint)
+    }
+    args.push(item.url)
+
+    var proc = resolveProcessComponent.createObject(root, { tsundokuItemId: id })
+    if (!proc) {
+      delete root.resolvingIds[id]
+      return
+    }
+    proc.command = args
+    proc.running = true
+  }
+
+  // Handles one resolve Process's stdout. Bails silently if the item was
+  // deleted mid-flight. Parse failures and empty stdout land as "failed" so
+  // the UI's retry button can surface — tsundoku-resolve itself always
+  // exits 0, so a bad/missing line here means something upstream broke.
+  function finishResolve(proc, raw) {
+    var id = proc.tsundokuItemId
+    delete root.resolvingIds[id]
+    proc.destroy()
+
+    if (!root.findItem(id)) return
+
+    var parsed = null
+    var trimmedRaw = String(raw || "").trim()
+    if (trimmedRaw) {
+      try {
+        parsed = JSON.parse(trimmedRaw)
+      } catch (e) {
+        parsed = null
+      }
+    }
+
+    root.items = root.items.map(function(it) {
+      if (it.id !== id) return it
+      var copy = {}
+      for (var k in it) copy[k] = it[k]
+      if (parsed && typeof parsed === "object") {
+        if (parsed.title) copy.title = parsed.title
+        copy.author = parsed.author || ""
+        if (parsed.thumbnailPath) copy.thumbnailPath = parsed.thumbnailPath
+        copy.resolveState = parsed.status === "resolved" ? "resolved" : "failed"
+      } else {
+        copy.resolveState = "failed"
+      }
+      return copy
+    })
+    root.saveLibrary()
+  }
+
+  // Startup/migration pass: re-resolve every unconsumed item whose
+  // resolveState is missing (v0.2-era items, before resolveState existed)
+  // or "pending" (a resolve interrupted by a shell restart mid-flight).
+  // Items left "failed" by a completed-but-unsuccessful resolve are NOT
+  // retried here — only via the UI's retry button. Runs at most once per
+  // service lifetime (see autoResolveDone above).
+  function autoResolvePendingItems() {
+    if (root.autoResolveDone) return
+    root.autoResolveDone = true
+
+    // v0.2-era items stored the raw host as `provider` (there was no
+    // registry yet), which would leave them logo-less and stuck on the
+    // OpenGraph tier forever. Re-match those against the registry before
+    // resolving; finishResolve persists the result.
+    root.items = root.items.map(function(it) {
+      if (it.consumedAt) return it
+      if (it.resolveState && it.resolveState !== "pending") return it
+      if (root.providerEntryFor(it.provider)) return it
+      var matched = Providers.match(it.url)
+      if (!matched) return it
+      var copy = {}
+      for (var k in it) copy[k] = it[k]
+      copy.provider = matched.id
+      copy.kind = matched.kind
+      return copy
+    })
+
+    for (var i = 0; i < root.items.length; i++) {
+      var it = root.items[i]
+      if (it.consumedAt) continue
+      if (!it.resolveState || it.resolveState === "pending") {
+        root.resolveItem(it.id)
+      }
+    }
   }
 
   function markConsumed(id) {
@@ -118,6 +257,11 @@ Item {
   }
 
   function removeItem(id) {
+    var target = root.findItem(id)
+    // Only ever delete inside our own thumbs cache — never a path outside it.
+    if (target && target.thumbnailPath && target.thumbnailPath.indexOf(root.thumbsDir + "/") === 0) {
+      Quickshell.execDetached(["rm", "-f", target.thumbnailPath])
+    }
     root.items = root.items.filter(function(item) { return item.id !== id })
     root.saveLibrary()
   }
@@ -150,13 +294,32 @@ Item {
     command: ["mkdir", "-p", root.dataDir, root.thumbsDir]
   }
 
+  // One of these is created per resolveItem() call and destroyed on
+  // completion — resolution is fully concurrent across items, not queued.
+  Component {
+    id: resolveProcessComponent
+
+    Process {
+      id: proc
+      property string tsundokuItemId: ""
+
+      stdout: StdioCollector {
+        waitForEnd: true
+        onStreamFinished: root.finishResolve(proc, text)
+      }
+    }
+  }
+
   FileView {
     id: libraryFile
     path: root.libraryPath
     watchChanges: true
     atomicWrites: true
     printErrors: false
-    onLoaded: root.loadLibrary(text())
+    onLoaded: {
+      root.loadLibrary(text())
+      root.autoResolvePendingItems()
+    }
     onLoadFailed: root.loadLibrary("[]")
     onFileChanged: reload()
   }

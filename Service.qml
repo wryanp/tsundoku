@@ -38,6 +38,11 @@ Item {
   // on every single save.
   property bool autoResolveDone: false
 
+  // Which open targets exist on this machine, probed once at startup.
+  // All-false until the probe answers (and stays all-false if it fails),
+  // so every open falls back to the browser rather than a missing app.
+  property var openCaps: ({ mpv: false, ytdlp: false, spotifyHandler: false })
+
   readonly property int unreadCount: {
     var count = 0
     for (var i = 0; i < root.items.length; i++) {
@@ -266,11 +271,17 @@ Item {
     root.saveLibrary()
   }
 
+  // Routes through Providers.openPlan so watch links land in mpv and
+  // listen links in the Spotify client when those exist on this machine,
+  // with a silent browser fallback otherwise. Returns the method used so
+  // the IPC open can report it; "" means the id wasn't found.
   function openItem(id) {
     var item = root.findItem(id)
-    if (!item) return
-    Quickshell.execDetached(["xdg-open", item.url])
+    if (!item) return ""
+    var plan = Providers.openPlan(item.url, item.provider, root.openCaps)
+    Quickshell.execDetached(plan.command)
     root.markConsumed(id)
+    return plan.method
   }
 
   function loadLibrary(raw) {
@@ -287,11 +298,34 @@ Item {
     libraryFile.setText(JSON.stringify(root.items, null, 2) + "\n")
   }
 
-  Component.onCompleted: mkdirProc.running = true
+  Component.onCompleted: {
+    mkdirProc.running = true
+    capsProc.running = true
+  }
 
   Process {
     id: mkdirProc
     command: ["mkdir", "-p", root.dataDir, root.thumbsDir]
+  }
+
+  // Probes for mpv, yt-dlp, and a registered Spotify URI handler once at
+  // startup. Never touches openCaps on a bad parse or a non-zero exit —
+  // the all-false default (browser for everything) is always safe.
+  Process {
+    id: capsProc
+    command: ["sh", "-c", "m=false; command -v mpv >/dev/null 2>&1 && m=true; y=false; command -v yt-dlp >/dev/null 2>&1 && y=true; s=false; [ -n \"$(xdg-mime query default x-scheme-handler/spotify 2>/dev/null)\" ] && s=true; printf '{\"mpv\":%s,\"ytdlp\":%s,\"spotifyHandler\":%s}\\n' \"$m\" \"$y\" \"$s\""]
+
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var parsed = JSON.parse(String(text || "").trim())
+          if (parsed && typeof parsed === "object") root.openCaps = parsed
+        } catch (e) {
+          // leave openCaps at its all-false default
+        }
+      }
+    }
   }
 
   // One of these is created per resolveItem() call and destroyed on
@@ -333,6 +367,10 @@ Item {
 
     function add(url: string): string {
       return root.addUrl(url)
+    }
+
+    function open(id: string): string {
+      return root.openItem(id)
     }
 
     function count(): string {

@@ -92,6 +92,7 @@ test("guessKind returns the matched entry's kind", function() {
 
 test("every entry has all required fields with valid kind and openAction", function() {
   var validKinds = ["watch", "listen", "read"]
+  var validOpenActions = ["browser", "mpv", "spotify"]
   Providers.all().forEach(function(entry) {
     assert.strictEqual(typeof entry.id, "string")
     assert.ok(entry.id.length > 0)
@@ -101,7 +102,7 @@ test("every entry has all required fields with valid kind and openAction", funct
     assert.ok(Array.isArray(entry.domains))
     assert.ok(entry.domains.length > 0)
     assert.strictEqual(entry.logoAsset, "assets/logos/" + entry.id + ".svg")
-    assert.strictEqual(entry.openAction, "browser")
+    assert.ok(validOpenActions.indexOf(entry.openAction) >= 0, entry.id + " has invalid openAction " + entry.openAction)
     assert.ok(entry.resolver && (entry.resolver.type === "oembed" || entry.resolver.type === "opengraph"))
     if (entry.resolver.type === "oembed") {
       assert.strictEqual(typeof entry.resolver.endpoint, "string")

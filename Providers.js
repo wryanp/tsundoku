@@ -14,7 +14,7 @@ function providerTable() {
       domains: ["youtube.com", "youtu.be"],
       logoAsset: "assets/logos/youtube.svg",
       resolver: { type: "oembed", endpoint: "https://www.youtube.com/oembed?format=json&url={url}" },
-      openAction: "browser"
+      openAction: "mpv"
     },
     {
       id: "youtubemusic",
@@ -32,7 +32,7 @@ function providerTable() {
       domains: ["vimeo.com"],
       logoAsset: "assets/logos/vimeo.svg",
       resolver: { type: "oembed", endpoint: "https://vimeo.com/api/oembed.json?url={url}" },
-      openAction: "browser"
+      openAction: "mpv"
     },
     {
       id: "twitch",
@@ -41,7 +41,7 @@ function providerTable() {
       domains: ["twitch.tv"],
       logoAsset: "assets/logos/twitch.svg",
       resolver: { type: "opengraph" },
-      openAction: "browser"
+      openAction: "mpv"
     },
     {
       id: "tiktok",
@@ -59,7 +59,7 @@ function providerTable() {
       domains: ["open.spotify.com", "spotify.com"],
       logoAsset: "assets/logos/spotify.svg",
       resolver: { type: "oembed", endpoint: "https://open.spotify.com/oembed?url={url}" },
-      openAction: "browser"
+      openAction: "spotify"
     },
     {
       id: "soundcloud",
@@ -196,6 +196,81 @@ function guessKind(url) {
   return entry ? entry.kind : "read"
 }
 
+// Path only (query/fragment ignored), same no-new-URL constraint as
+// hostFromUrl since this also has to run inside QML's JS engine.
+function isDirectAudioUrl(url) {
+  var m = String(url || "").match(/^https?:\/\/[^\/?#]+([^?#]*)/i)
+  if (!m) return false
+  return /\.(mp3|m4a|ogg|oga|opus|flac|wav|aac)$/i.test(m[1])
+}
+
+// open.spotify.com paths are "/{type}/{id}" or, with a locale prefix,
+// "/{locale}/{type}/{id}" (e.g. "/intl-pt/track/{id}"). The path capture
+// already excludes query/fragment, so the id comes out clean.
+function spotifyUri(url) {
+  if (hostFromUrl(url) !== "open.spotify.com") return null
+
+  var m = String(url || "").match(/^https?:\/\/[^\/?#]+([^?#]*)/i)
+  if (!m) return null
+
+  var segs = m[1].split("/").filter(function(s) { return s.length > 0 })
+  if (segs.length === 3) segs = segs.slice(1)
+  if (segs.length !== 2) return null
+
+  var type = segs[0]
+  var id = segs[1]
+  var validTypes = ["track", "album", "artist", "playlist", "episode", "show"]
+  if (validTypes.indexOf(type) < 0) return null
+  if (!id) return null
+
+  return "spotify:" + type + ":" + id
+}
+
+// Decides how a URL should be opened. Every fallback here is silent by
+// design: a missing app (no mpv, no yt-dlp, no spotify handler) must
+// never block the open, it should just degrade to the browser.
+function openPlan(url, providerId, caps) {
+  caps = caps || {}
+  var mpv = !!caps.mpv
+  var ytdlp = !!caps.ytdlp
+  var spotifyHandler = !!caps.spotifyHandler
+
+  // Direct audio files only need mpv itself, not yt-dlp extraction.
+  if (isDirectAudioUrl(url) && mpv) {
+    return { method: "mpv", command: ["mpv", url] }
+  }
+
+  var entries = providerTable()
+  var entry = null
+  for (var i = 0; i < entries.length; i++) {
+    if (entries[i].id === providerId) {
+      entry = entries[i]
+      break
+    }
+  }
+
+  if (entry && entry.openAction === "mpv" && mpv && ytdlp) {
+    return { method: "mpv", command: ["mpv", url] }
+  }
+
+  if (entry && entry.openAction === "spotify" && spotifyHandler) {
+    var uri = spotifyUri(url)
+    if (uri) {
+      return { method: "spotify", command: ["xdg-open", uri] }
+    }
+  }
+
+  return { method: "browser", command: ["xdg-open", url] }
+}
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { all: all, match: match, hostFromUrl: hostFromUrl, guessKind: guessKind }
+  module.exports = {
+    all: all,
+    match: match,
+    hostFromUrl: hostFromUrl,
+    guessKind: guessKind,
+    isDirectAudioUrl: isDirectAudioUrl,
+    spotifyUri: spotifyUri,
+    openPlan: openPlan
+  }
 }

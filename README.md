@@ -81,7 +81,8 @@ sees a password; it only ever holds the resulting token, stored at
 refreshed silently. Disconnecting deletes that file.
 
 Because Spotify requires every app to register its own OAuth client, a
-one-time setup is needed before the Connect button goes live:
+one-time setup is needed first — clicking Connect before it's done says
+so inline and points here:
 
 1. Create an app at <https://developer.spotify.com/dashboard> (any name).
 2. Add `http://127.0.0.1:41419/callback` as a Redirect URI — exactly that,

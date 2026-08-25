@@ -303,11 +303,26 @@ Item {
 
   // Reassigns authState wholesale, same rationale as items/openCaps above
   // (in-place mutation of the existing object is invisible to bindings).
+  // Skips the reassign when nothing changed, so authStateChanged only fires
+  // on real transitions — the popup clears its inline auth hint on that
+  // signal and must not lose it to a same-state re-probe.
   function setAuthState(providerId, state) {
+    if (root.authState[providerId] === state) return
     var copy = {}
     for (var k in root.authState) copy[k] = root.authState[k]
     copy[providerId] = state
     root.authState = copy
+  }
+
+  // Re-probe the stored connection state on demand (the popup opening) so
+  // dropping clients.json into place is noticed without a shell restart.
+  // Never during an active connect — the probe reports token-file state
+  // and would clobber "connecting" mid-flow.
+  function refreshAuthStatus() {
+    if (!root.openCaps.node) return
+    if (root.authState.spotify === "connecting") return
+    if (authStatusProc.running) return
+    authStatusProc.running = true
   }
 
   // Starts the spotify OAuth flow in the background via tsundoku-auth —

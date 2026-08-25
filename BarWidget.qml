@@ -46,13 +46,29 @@ BarWidget {
   // Id of the single expanded row's note detail, "" when none is open.
   property string expandedId: ""
 
+  // Inline feedback for the Spotify row, mirroring addError: "" when
+  // clean, set when a Connect click can't start a flow (no client id, no
+  // node) — a click must always visibly answer, even when the answer is
+  // "not set up yet".
+  property string authHint: ""
+
+  // Real state transitions supersede the hint (the service skips
+  // same-state reassigns, so a re-probe that changes nothing keeps it).
+  onAuthStateChanged: authHint = ""
+
   // Reset feedback on open/close, and focus the add field on open so the
   // popup is paste-ready without a click.
   onPopupOpenChanged: {
     root.addError = ""
+    root.authHint = ""
     root.cursor = -1
     root.expandedId = ""
-    if (root.popupOpen) addField.forceActiveFocus()
+    if (root.popupOpen) {
+      addField.forceActiveFocus()
+      // Notices a clients.json dropped into place since startup, so the
+      // Connect button enables without a shell restart.
+      if (root.service) root.service.refreshAuthStatus()
+    }
   }
 
   // Switching tabs changes what row 0.. even means, so land back on the
@@ -607,7 +623,10 @@ BarWidget {
           text: spotifySettingsRow.spotifyState === "connected" ? "Disconnect"
               : spotifySettingsRow.spotifyState === "connecting" ? "Connecting…"
               : "Connect"
-          enabled: spotifySettingsRow.spotifyState === "connected" || spotifySettingsRow.spotifyState === "disconnected" || spotifySettingsRow.spotifyState === "error"
+          // Enabled in every state but mid-flow: a click that can't start
+          // anything answers with authHint below instead of being eaten
+          // by a disabled control.
+          enabled: spotifySettingsRow.spotifyState !== "connecting"
           foreground: root.bar.foreground
           bordered: true
           horizontalPadding: Style.spacing.controlPaddingX
@@ -615,10 +634,37 @@ BarWidget {
           fontSize: Style.font.bodySmall
           onClicked: {
             if (!root.service) return
-            if (spotifySettingsRow.spotifyState === "connected") root.service.disconnectProvider("spotify")
-            else root.service.connectProvider("spotify")
+            root.authHint = ""
+            var state = spotifySettingsRow.spotifyState
+            if (state === "connected") {
+              if (!root.service.disconnectProvider("spotify"))
+                root.authHint = "Can't run the auth helper — node isn't installed."
+              return
+            }
+            if (state === "unconfigured") {
+              // Re-probe too, so a clients.json created moments ago flips
+              // the row without reopening the popup.
+              root.service.refreshAuthStatus()
+              root.authHint = "Needs a one-time setup: create an app at developer.spotify.com/dashboard, then put its client id in ~/.local/share/tsundoku/auth/clients.json — full steps under \"Connect Spotify\" in the README."
+              return
+            }
+            if (!root.service.connectProvider("spotify")) {
+              root.authHint = root.service.openCaps.node
+                ? "Couldn't start the connect flow — try again."
+                : "Can't run the auth helper — node isn't installed."
+            }
           }
         }
+      }
+
+      Text {
+        visible: root.authHint !== ""
+        width: parent.width
+        text: root.authHint
+        color: Color.urgent
+        font.family: root.bar.fontFamily
+        font.pixelSize: Style.font.caption
+        wrapMode: Text.WordWrap
       }
     }
   }

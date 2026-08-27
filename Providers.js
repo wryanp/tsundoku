@@ -393,6 +393,15 @@ function providerTable() {
       openAction: "browser"
     },
     {
+      id: "github",
+      displayName: "GitHub",
+      kind: "read",
+      domains: ["github.com"],
+      logoAsset: "assets/logos/github.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
       id: "kindle",
       displayName: "Kindle",
       kind: "read",
@@ -402,6 +411,1443 @@ function providerTable() {
       // hostname fallback tier carries most Kindle links.
       domains: ["read.amazon.com"],
       logoAsset: "assets/logos/kindle.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+
+    // --- Watch: live TV, sports, and more streaming platforms ---
+    {
+      id: "plutotv",
+      displayName: "Pluto TV",
+      kind: "watch",
+      domains: ["pluto.tv"],
+      logoAsset: "assets/logos/plutotv.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "rokuchannel",
+      displayName: "The Roku Channel",
+      kind: "watch",
+      domains: ["therokuchannel.roku.com"],
+      logoAsset: "assets/logos/rokuchannel.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "plex",
+      displayName: "Plex",
+      kind: "watch",
+      domains: ["plex.tv"],
+      logoAsset: "assets/logos/plex.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "slingtv",
+      displayName: "Sling TV",
+      kind: "watch",
+      domains: ["sling.com"],
+      logoAsset: "assets/logos/slingtv.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "fubo",
+      displayName: "Fubo",
+      kind: "watch",
+      domains: ["fubo.tv"],
+      logoAsset: "assets/logos/fubo.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "espn",
+      displayName: "ESPN",
+      kind: "watch",
+      domains: ["espn.com"],
+      logoAsset: "assets/logos/espn.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "dazn",
+      displayName: "DAZN",
+      kind: "watch",
+      domains: ["dazn.com"],
+      logoAsset: "assets/logos/dazn.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "nba",
+      displayName: "NBA",
+      kind: "watch",
+      domains: ["nba.com"],
+      logoAsset: "assets/logos/nba.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "nfl",
+      displayName: "NFL",
+      kind: "watch",
+      domains: ["nfl.com"],
+      logoAsset: "assets/logos/nfl.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "mlb",
+      displayName: "MLB",
+      kind: "watch",
+      domains: ["mlb.com"],
+      logoAsset: "assets/logos/mlb.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "nhl",
+      displayName: "NHL",
+      kind: "watch",
+      domains: ["nhl.com"],
+      logoAsset: "assets/logos/nhl.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "formula1",
+      displayName: "Formula 1",
+      kind: "watch",
+      domains: ["formula1.com"],
+      logoAsset: "assets/logos/formula1.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "nebula",
+      displayName: "Nebula",
+      kind: "watch",
+      domains: ["nebula.tv"],
+      logoAsset: "assets/logos/nebula.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "curiositystream",
+      displayName: "CuriosityStream",
+      kind: "watch",
+      domains: ["curiositystream.com"],
+      logoAsset: "assets/logos/curiositystream.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "mubi",
+      displayName: "MUBI",
+      kind: "watch",
+      domains: ["mubi.com"],
+      logoAsset: "assets/logos/mubi.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "criterionchannel",
+      displayName: "Criterion Channel",
+      kind: "watch",
+      domains: ["criterionchannel.com"],
+      logoAsset: "assets/logos/criterionchannel.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "shudder",
+      displayName: "Shudder",
+      kind: "watch",
+      domains: ["shudder.com"],
+      logoAsset: "assets/logos/shudder.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "amcplus",
+      displayName: "AMC+",
+      kind: "watch",
+      domains: ["amcplus.com"],
+      logoAsset: "assets/logos/amcplus.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "starz",
+      displayName: "Starz",
+      kind: "watch",
+      domains: ["starz.com"],
+      logoAsset: "assets/logos/starz.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "britbox",
+      displayName: "BritBox",
+      kind: "watch",
+      domains: ["britbox.com"],
+      logoAsset: "assets/logos/britbox.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "discoveryplus",
+      displayName: "Discovery+",
+      kind: "watch",
+      domains: ["discoveryplus.com"],
+      logoAsset: "assets/logos/discoveryplus.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "viki",
+      displayName: "Rakuten Viki",
+      kind: "watch",
+      domains: ["viki.com"],
+      logoAsset: "assets/logos/viki.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "iqiyi",
+      displayName: "iQIYI",
+      kind: "watch",
+      domains: ["iqiyi.com", "iq.com"],
+      logoAsset: "assets/logos/iqiyi.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "bilibili",
+      displayName: "Bilibili",
+      kind: "watch",
+      domains: ["bilibili.com", "b23.tv"],
+      logoAsset: "assets/logos/bilibili.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "niconico",
+      displayName: "Niconico",
+      kind: "watch",
+      domains: ["nicovideo.jp"],
+      logoAsset: "assets/logos/niconico.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "hotstar",
+      displayName: "JioHotstar",
+      kind: "watch",
+      domains: ["hotstar.com"],
+      logoAsset: "assets/logos/hotstar.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "zee5",
+      displayName: "ZEE5",
+      kind: "watch",
+      domains: ["zee5.com"],
+      logoAsset: "assets/logos/zee5.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "pbs",
+      displayName: "PBS",
+      kind: "watch",
+      domains: ["pbs.org"],
+      logoAsset: "assets/logos/pbs.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "itvx",
+      displayName: "ITVX",
+      kind: "watch",
+      domains: ["itv.com"],
+      logoAsset: "assets/logos/itvx.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "ted",
+      displayName: "TED",
+      kind: "watch",
+      domains: ["ted.com"],
+      logoAsset: "assets/logos/ted.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "vevo",
+      displayName: "Vevo",
+      kind: "watch",
+      domains: ["vevo.com"],
+      logoAsset: "assets/logos/vevo.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "dropout",
+      displayName: "Dropout",
+      kind: "watch",
+      domains: ["dropout.tv"],
+      logoAsset: "assets/logos/dropout.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "instagram",
+      displayName: "Instagram",
+      kind: "watch",
+      domains: ["instagram.com"],
+      logoAsset: "assets/logos/instagram.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+
+    // --- Listen: more music and podcast platforms ---
+    {
+      id: "qobuz",
+      displayName: "Qobuz",
+      kind: "listen",
+      domains: ["qobuz.com"],
+      logoAsset: "assets/logos/qobuz.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "napster",
+      displayName: "Napster",
+      kind: "listen",
+      domains: ["napster.com"],
+      logoAsset: "assets/logos/napster.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "overcast",
+      displayName: "Overcast",
+      kind: "listen",
+      domains: ["overcast.fm"],
+      logoAsset: "assets/logos/overcast.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "castbox",
+      displayName: "Castbox",
+      kind: "listen",
+      domains: ["castbox.fm"],
+      logoAsset: "assets/logos/castbox.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "podbean",
+      displayName: "Podbean",
+      kind: "listen",
+      domains: ["podbean.com"],
+      logoAsset: "assets/logos/podbean.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "acast",
+      displayName: "Acast",
+      kind: "listen",
+      domains: ["acast.com"],
+      logoAsset: "assets/logos/acast.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "tunein",
+      displayName: "TuneIn",
+      kind: "listen",
+      domains: ["tunein.com"],
+      logoAsset: "assets/logos/tunein.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "audiomack",
+      displayName: "Audiomack",
+      kind: "listen",
+      domains: ["audiomack.com"],
+      logoAsset: "assets/logos/audiomack.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "mixcloud",
+      displayName: "Mixcloud",
+      kind: "listen",
+      domains: ["mixcloud.com"],
+      logoAsset: "assets/logos/mixcloud.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "lastfm",
+      displayName: "Last.fm",
+      kind: "listen",
+      domains: ["last.fm"],
+      logoAsset: "assets/logos/lastfm.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "jiosaavn",
+      displayName: "JioSaavn",
+      kind: "listen",
+      domains: ["jiosaavn.com"],
+      logoAsset: "assets/logos/jiosaavn.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "anghami",
+      displayName: "Anghami",
+      kind: "listen",
+      domains: ["anghami.com"],
+      logoAsset: "assets/logos/anghami.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "librivox",
+      displayName: "LibriVox",
+      kind: "listen",
+      domains: ["librivox.org"],
+      logoAsset: "assets/logos/librivox.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "shazam",
+      displayName: "Shazam",
+      kind: "listen",
+      domains: ["shazam.com"],
+      logoAsset: "assets/logos/shazam.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+
+    // --- Read: news, magazines, science, culture, and books ---
+    {
+      id: "washingtonpost",
+      displayName: "The Washington Post",
+      kind: "read",
+      domains: ["washingtonpost.com", "wapo.st"],
+      logoAsset: "assets/logos/washingtonpost.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "wsj",
+      displayName: "The Wall Street Journal",
+      kind: "read",
+      domains: ["wsj.com"],
+      logoAsset: "assets/logos/wsj.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "bloomberg",
+      displayName: "Bloomberg",
+      kind: "read",
+      domains: ["bloomberg.com"],
+      logoAsset: "assets/logos/bloomberg.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "reuters",
+      displayName: "Reuters",
+      kind: "read",
+      domains: ["reuters.com"],
+      logoAsset: "assets/logos/reuters.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "apnews",
+      displayName: "AP News",
+      kind: "read",
+      domains: ["apnews.com"],
+      logoAsset: "assets/logos/apnews.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "cnn",
+      displayName: "CNN",
+      kind: "read",
+      domains: ["cnn.com"],
+      logoAsset: "assets/logos/cnn.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "foxnews",
+      displayName: "Fox News",
+      kind: "read",
+      domains: ["foxnews.com"],
+      logoAsset: "assets/logos/foxnews.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "nbcnews",
+      displayName: "NBC News",
+      kind: "read",
+      domains: ["nbcnews.com"],
+      logoAsset: "assets/logos/nbcnews.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "abcnews",
+      displayName: "ABC News",
+      kind: "read",
+      domains: ["abcnews.go.com"],
+      logoAsset: "assets/logos/abcnews.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "cbsnews",
+      displayName: "CBS News",
+      kind: "read",
+      domains: ["cbsnews.com"],
+      logoAsset: "assets/logos/cbsnews.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "usatoday",
+      displayName: "USA Today",
+      kind: "read",
+      domains: ["usatoday.com"],
+      logoAsset: "assets/logos/usatoday.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "latimes",
+      displayName: "Los Angeles Times",
+      kind: "read",
+      domains: ["latimes.com"],
+      logoAsset: "assets/logos/latimes.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "theatlantic",
+      displayName: "The Atlantic",
+      kind: "read",
+      domains: ["theatlantic.com"],
+      logoAsset: "assets/logos/theatlantic.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "newyorker",
+      displayName: "The New Yorker",
+      kind: "read",
+      domains: ["newyorker.com"],
+      logoAsset: "assets/logos/newyorker.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "economist",
+      displayName: "The Economist",
+      kind: "read",
+      domains: ["economist.com"],
+      logoAsset: "assets/logos/economist.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "ft",
+      displayName: "Financial Times",
+      kind: "read",
+      domains: ["ft.com"],
+      logoAsset: "assets/logos/ft.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "time",
+      displayName: "Time",
+      kind: "read",
+      domains: ["time.com"],
+      logoAsset: "assets/logos/time.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "newsweek",
+      displayName: "Newsweek",
+      kind: "read",
+      domains: ["newsweek.com"],
+      logoAsset: "assets/logos/newsweek.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "politico",
+      displayName: "Politico",
+      kind: "read",
+      domains: ["politico.com", "politico.eu"],
+      logoAsset: "assets/logos/politico.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "axios",
+      displayName: "Axios",
+      kind: "read",
+      domains: ["axios.com"],
+      logoAsset: "assets/logos/axios.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "vox",
+      displayName: "Vox",
+      kind: "read",
+      domains: ["vox.com"],
+      logoAsset: "assets/logos/vox.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "huffpost",
+      displayName: "HuffPost",
+      kind: "read",
+      domains: ["huffpost.com"],
+      logoAsset: "assets/logos/huffpost.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "businessinsider",
+      displayName: "Business Insider",
+      kind: "read",
+      domains: ["businessinsider.com"],
+      logoAsset: "assets/logos/businessinsider.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "forbes",
+      displayName: "Forbes",
+      kind: "read",
+      domains: ["forbes.com"],
+      logoAsset: "assets/logos/forbes.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "fortune",
+      displayName: "Fortune",
+      kind: "read",
+      domains: ["fortune.com"],
+      logoAsset: "assets/logos/fortune.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "cnbc",
+      displayName: "CNBC",
+      kind: "read",
+      domains: ["cnbc.com"],
+      logoAsset: "assets/logos/cnbc.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "propublica",
+      displayName: "ProPublica",
+      kind: "read",
+      domains: ["propublica.org"],
+      logoAsset: "assets/logos/propublica.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "npr",
+      displayName: "NPR",
+      kind: "read",
+      domains: ["npr.org"],
+      logoAsset: "assets/logos/npr.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "aljazeera",
+      displayName: "Al Jazeera",
+      kind: "read",
+      domains: ["aljazeera.com"],
+      logoAsset: "assets/logos/aljazeera.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "dw",
+      displayName: "DW",
+      kind: "read",
+      domains: ["dw.com"],
+      logoAsset: "assets/logos/dw.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "yahoonews",
+      displayName: "Yahoo News",
+      kind: "read",
+      domains: ["news.yahoo.com", "news.yahoo.co.jp"],
+      logoAsset: "assets/logos/yahoonews.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "globo",
+      displayName: "Globo",
+      kind: "read",
+      domains: ["globo.com"],
+      logoAsset: "assets/logos/globo.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "independent",
+      displayName: "The Independent",
+      kind: "read",
+      domains: ["independent.co.uk", "the-independent.com"],
+      logoAsset: "assets/logos/independent.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "telegraph",
+      displayName: "The Telegraph",
+      kind: "read",
+      domains: ["telegraph.co.uk"],
+      logoAsset: "assets/logos/telegraph.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "dailymail",
+      displayName: "Daily Mail",
+      kind: "read",
+      domains: ["dailymail.co.uk"],
+      logoAsset: "assets/logos/dailymail.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "skynews",
+      displayName: "Sky News",
+      kind: "read",
+      domains: ["news.sky.com"],
+      logoAsset: "assets/logos/skynews.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "bbc",
+      displayName: "BBC",
+      kind: "read",
+      domains: ["bbc.com", "bbc.co.uk"],
+      logoAsset: "assets/logos/bbc.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "cbc",
+      displayName: "CBC",
+      kind: "read",
+      domains: ["cbc.ca"],
+      logoAsset: "assets/logos/cbc.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "abcau",
+      displayName: "ABC News (Australia)",
+      kind: "read",
+      domains: ["abc.net.au"],
+      logoAsset: "assets/logos/abcau.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "timesofindia",
+      displayName: "The Times of India",
+      kind: "read",
+      domains: ["timesofindia.indiatimes.com"],
+      logoAsset: "assets/logos/timesofindia.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "ndtv",
+      displayName: "NDTV",
+      kind: "read",
+      domains: ["ndtv.com"],
+      logoAsset: "assets/logos/ndtv.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "scmp",
+      displayName: "South China Morning Post",
+      kind: "read",
+      domains: ["scmp.com"],
+      logoAsset: "assets/logos/scmp.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "lemonde",
+      displayName: "Le Monde",
+      kind: "read",
+      domains: ["lemonde.fr"],
+      logoAsset: "assets/logos/lemonde.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "spiegel",
+      displayName: "Der Spiegel",
+      kind: "read",
+      domains: ["spiegel.de"],
+      logoAsset: "assets/logos/spiegel.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "elpais",
+      displayName: "El País",
+      kind: "read",
+      domains: ["elpais.com"],
+      logoAsset: "assets/logos/elpais.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "theverge",
+      displayName: "The Verge",
+      kind: "read",
+      domains: ["theverge.com"],
+      logoAsset: "assets/logos/theverge.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "techcrunch",
+      displayName: "TechCrunch",
+      kind: "read",
+      domains: ["techcrunch.com"],
+      logoAsset: "assets/logos/techcrunch.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "arstechnica",
+      displayName: "Ars Technica",
+      kind: "read",
+      domains: ["arstechnica.com"],
+      logoAsset: "assets/logos/arstechnica.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "wired",
+      displayName: "Wired",
+      kind: "read",
+      domains: ["wired.com"],
+      logoAsset: "assets/logos/wired.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "engadget",
+      displayName: "Engadget",
+      kind: "read",
+      domains: ["engadget.com"],
+      logoAsset: "assets/logos/engadget.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "gizmodo",
+      displayName: "Gizmodo",
+      kind: "read",
+      domains: ["gizmodo.com"],
+      logoAsset: "assets/logos/gizmodo.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "cnet",
+      displayName: "CNET",
+      kind: "read",
+      domains: ["cnet.com"],
+      logoAsset: "assets/logos/cnet.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "404media",
+      displayName: "404 Media",
+      kind: "read",
+      domains: ["404media.co"],
+      logoAsset: "assets/logos/404media.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "technologyreview",
+      displayName: "MIT Technology Review",
+      kind: "read",
+      domains: ["technologyreview.com"],
+      logoAsset: "assets/logos/technologyreview.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "slashdot",
+      displayName: "Slashdot",
+      kind: "read",
+      domains: ["slashdot.org"],
+      logoAsset: "assets/logos/slashdot.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "devto",
+      displayName: "DEV Community",
+      kind: "read",
+      domains: ["dev.to"],
+      logoAsset: "assets/logos/devto.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "stackoverflow",
+      displayName: "Stack Overflow",
+      kind: "read",
+      domains: ["stackoverflow.com"],
+      logoAsset: "assets/logos/stackoverflow.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "quora",
+      displayName: "Quora",
+      kind: "read",
+      domains: ["quora.com"],
+      logoAsset: "assets/logos/quora.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "nature",
+      displayName: "Nature",
+      kind: "read",
+      domains: ["nature.com"],
+      logoAsset: "assets/logos/nature.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "science",
+      displayName: "Science",
+      kind: "read",
+      domains: ["science.org"],
+      logoAsset: "assets/logos/science.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "scientificamerican",
+      displayName: "Scientific American",
+      kind: "read",
+      domains: ["scientificamerican.com"],
+      logoAsset: "assets/logos/scientificamerican.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "newscientist",
+      displayName: "New Scientist",
+      kind: "read",
+      domains: ["newscientist.com"],
+      logoAsset: "assets/logos/newscientist.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "quantamagazine",
+      displayName: "Quanta Magazine",
+      kind: "read",
+      domains: ["quantamagazine.org"],
+      logoAsset: "assets/logos/quantamagazine.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "nationalgeographic",
+      displayName: "National Geographic",
+      kind: "read",
+      domains: ["nationalgeographic.com"],
+      logoAsset: "assets/logos/nationalgeographic.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "smithsonianmag",
+      displayName: "Smithsonian Magazine",
+      kind: "read",
+      domains: ["smithsonianmag.com"],
+      logoAsset: "assets/logos/smithsonianmag.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "biorxiv",
+      displayName: "bioRxiv",
+      kind: "read",
+      domains: ["biorxiv.org"],
+      logoAsset: "assets/logos/biorxiv.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "rollingstone",
+      displayName: "Rolling Stone",
+      kind: "read",
+      domains: ["rollingstone.com"],
+      logoAsset: "assets/logos/rollingstone.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "variety",
+      displayName: "Variety",
+      kind: "read",
+      domains: ["variety.com"],
+      logoAsset: "assets/logos/variety.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "hollywoodreporter",
+      displayName: "The Hollywood Reporter",
+      kind: "read",
+      domains: ["hollywoodreporter.com"],
+      logoAsset: "assets/logos/hollywoodreporter.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "people",
+      displayName: "People",
+      kind: "read",
+      domains: ["people.com"],
+      logoAsset: "assets/logos/people.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "vanityfair",
+      displayName: "Vanity Fair",
+      kind: "read",
+      domains: ["vanityfair.com"],
+      logoAsset: "assets/logos/vanityfair.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "vogue",
+      displayName: "Vogue",
+      kind: "read",
+      domains: ["vogue.com"],
+      logoAsset: "assets/logos/vogue.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "vulture",
+      displayName: "Vulture",
+      kind: "read",
+      domains: ["vulture.com"],
+      logoAsset: "assets/logos/vulture.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "theringer",
+      displayName: "The Ringer",
+      kind: "read",
+      domains: ["theringer.com"],
+      logoAsset: "assets/logos/theringer.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "pitchfork",
+      displayName: "Pitchfork",
+      kind: "read",
+      domains: ["pitchfork.com"],
+      logoAsset: "assets/logos/pitchfork.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "billboard",
+      displayName: "Billboard",
+      kind: "read",
+      domains: ["billboard.com"],
+      logoAsset: "assets/logos/billboard.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "rottentomatoes",
+      displayName: "Rotten Tomatoes",
+      kind: "read",
+      domains: ["rottentomatoes.com"],
+      logoAsset: "assets/logos/rottentomatoes.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "imdb",
+      displayName: "IMDb",
+      kind: "read",
+      domains: ["imdb.com"],
+      logoAsset: "assets/logos/imdb.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "letterboxd",
+      displayName: "Letterboxd",
+      kind: "read",
+      domains: ["letterboxd.com", "boxd.it"],
+      logoAsset: "assets/logos/letterboxd.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "metacritic",
+      displayName: "Metacritic",
+      kind: "read",
+      domains: ["metacritic.com"],
+      logoAsset: "assets/logos/metacritic.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "ign",
+      displayName: "IGN",
+      kind: "read",
+      domains: ["ign.com"],
+      logoAsset: "assets/logos/ign.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "kotaku",
+      displayName: "Kotaku",
+      kind: "read",
+      domains: ["kotaku.com"],
+      logoAsset: "assets/logos/kotaku.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "polygon",
+      displayName: "Polygon",
+      kind: "read",
+      domains: ["polygon.com"],
+      logoAsset: "assets/logos/polygon.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "pcgamer",
+      displayName: "PC Gamer",
+      kind: "read",
+      domains: ["pcgamer.com"],
+      logoAsset: "assets/logos/pcgamer.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "theathletic",
+      displayName: "The Athletic",
+      kind: "read",
+      domains: ["theathletic.com"],
+      logoAsset: "assets/logos/theathletic.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "si",
+      displayName: "Sports Illustrated",
+      kind: "read",
+      domains: ["si.com"],
+      logoAsset: "assets/logos/si.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "bleacherreport",
+      displayName: "Bleacher Report",
+      kind: "read",
+      domains: ["bleacherreport.com"],
+      logoAsset: "assets/logos/bleacherreport.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "skysports",
+      displayName: "Sky Sports",
+      kind: "read",
+      domains: ["skysports.com"],
+      logoAsset: "assets/logos/skysports.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "bonappetit",
+      displayName: "Bon Appétit",
+      kind: "read",
+      domains: ["bonappetit.com"],
+      logoAsset: "assets/logos/bonappetit.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "seriouseats",
+      displayName: "Serious Eats",
+      kind: "read",
+      domains: ["seriouseats.com"],
+      logoAsset: "assets/logos/seriouseats.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "allrecipes",
+      displayName: "Allrecipes",
+      kind: "read",
+      domains: ["allrecipes.com"],
+      logoAsset: "assets/logos/allrecipes.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "eater",
+      displayName: "Eater",
+      kind: "read",
+      domains: ["eater.com"],
+      logoAsset: "assets/logos/eater.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "atlasobscura",
+      displayName: "Atlas Obscura",
+      kind: "read",
+      domains: ["atlasobscura.com"],
+      logoAsset: "assets/logos/atlasobscura.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "wikihow",
+      displayName: "wikiHow",
+      kind: "read",
+      domains: ["wikihow.com"],
+      logoAsset: "assets/logos/wikihow.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "royalroad",
+      displayName: "Royal Road",
+      kind: "read",
+      domains: ["royalroad.com"],
+      logoAsset: "assets/logos/royalroad.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "fanfictionnet",
+      displayName: "FanFiction.Net",
+      kind: "read",
+      domains: ["fanfiction.net"],
+      logoAsset: "assets/logos/fanfictionnet.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "mangaplus",
+      displayName: "MANGA Plus",
+      kind: "read",
+      domains: ["mangaplus.shueisha.co.jp"],
+      logoAsset: "assets/logos/mangaplus.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "kobo",
+      displayName: "Kobo",
+      kind: "read",
+      domains: ["kobo.com"],
+      logoAsset: "assets/logos/kobo.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "gutenberg",
+      displayName: "Project Gutenberg",
+      kind: "read",
+      domains: ["gutenberg.org"],
+      logoAsset: "assets/logos/gutenberg.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "internetarchive",
+      displayName: "Internet Archive",
+      kind: "read",
+      domains: ["archive.org"],
+      logoAsset: "assets/logos/internetarchive.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "everand",
+      displayName: "Everand",
+      kind: "read",
+      domains: ["everand.com", "scribd.com"],
+      logoAsset: "assets/logos/everand.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "storygraph",
+      displayName: "The StoryGraph",
+      kind: "read",
+      domains: ["thestorygraph.com"],
+      logoAsset: "assets/logos/storygraph.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "britannica",
+      displayName: "Britannica",
+      kind: "read",
+      domains: ["britannica.com"],
+      logoAsset: "assets/logos/britannica.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "bluesky",
+      displayName: "Bluesky",
+      kind: "read",
+      domains: ["bsky.app"],
+      logoAsset: "assets/logos/bluesky.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "threads",
+      displayName: "Threads",
+      kind: "read",
+      domains: ["threads.com", "threads.net"],
+      logoAsset: "assets/logos/threads.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "tumblr",
+      displayName: "Tumblr",
+      kind: "read",
+      domains: ["tumblr.com"],
+      logoAsset: "assets/logos/tumblr.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "mastodon",
+      displayName: "Mastodon",
+      kind: "read",
+      domains: ["mastodon.social"],
+      logoAsset: "assets/logos/mastodon.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "facebook",
+      displayName: "Facebook",
+      kind: "read",
+      domains: ["facebook.com"],
+      logoAsset: "assets/logos/facebook.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "pinterest",
+      displayName: "Pinterest",
+      kind: "read",
+      domains: ["pinterest.com", "pin.it"],
+      logoAsset: "assets/logos/pinterest.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "theonion",
+      displayName: "The Onion",
+      kind: "read",
+      domains: ["theonion.com"],
+      logoAsset: "assets/logos/theonion.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "xkcd",
+      displayName: "xkcd",
+      kind: "read",
+      domains: ["xkcd.com"],
+      logoAsset: "assets/logos/xkcd.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "genius",
+      displayName: "Genius",
+      kind: "read",
+      domains: ["genius.com"],
+      logoAsset: "assets/logos/genius.svg",
       resolver: { type: "opengraph" },
       openAction: "browser"
     }

@@ -16,6 +16,20 @@ omarchy plugin enable william.tsundoku
 The bar widget shows an unread count. Click it to open the popup: a list of
 everything you've saved, filterable by All, Watch, Listen, Read, and Done.
 
+To remove it again:
+
+```bash
+omarchy plugin remove william.tsundoku
+```
+
+Your saved library under `~/.local/share/tsundoku/` is left in place (see
+Storage below); delete that directory too if you want nothing left behind.
+
+Everything Tsundoku needs at runtime ships with a stock Omarchy install:
+`curl`, `jq`, and `sha256sum` for link resolution, `wl-paste` and
+`notify-send` for the capture hotkey. `mpv` (plus `yt-dlp`) is optional —
+when present, watch links open in it instead of the browser.
+
 ## Capture
 
 Two ways in:

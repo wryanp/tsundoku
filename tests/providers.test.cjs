@@ -21,7 +21,44 @@ var domainCases = [
   { url: "https://en.wikipedia.org/wiki/Tsundoku", id: "wikipedia" },
   { url: "https://news.ycombinator.com/item?id=123456", id: "hackernews" },
   { url: "https://www.reddit.com/r/programming/comments/abc/title/", id: "reddit" },
-  { url: "https://redd.it/abc123", id: "reddit" }
+  { url: "https://redd.it/abc123", id: "reddit" },
+
+  // Watch: streaming video services
+  { url: "https://www.netflix.com/title/80057281", id: "netflix" },
+  { url: "https://www.primevideo.com/detail/0TNSHZKPXY1RTDG5XU6ABC123/", id: "primevideo" },
+  { url: "https://www.disneyplus.com/movies/example/abc123", id: "disneyplus" },
+  { url: "https://www.hbomax.com/show/example/abc123", id: "hbomax" },
+  { url: "https://www.max.com/show/example/abc123", id: "hbomax" },
+  { url: "https://www.hulu.com/watch/abc-123-def", id: "hulu" },
+  { url: "https://tv.apple.com/us/movie/example/umc.cmc.abc123", id: "appletv" },
+  { url: "https://www.paramountplus.com/shows/example/video/abc123/", id: "paramountplus" },
+  { url: "https://www.peacocktv.com/watch/asset/example/abc123", id: "peacock" },
+  { url: "https://www.crunchyroll.com/watch/GABC12345/example-episode", id: "crunchyroll" },
+  { url: "https://tubitv.com/movies/123456/example-movie", id: "tubi" },
+  { url: "https://www.dailymotion.com/video/x8abc12", id: "dailymotion" },
+  { url: "https://dai.ly/x8abc12", id: "dailymotion" },
+
+  // Listen: music, radio, and audiobook services
+  { url: "https://music.apple.com/us/album/example/1234567890", id: "applemusic" },
+  { url: "https://music.amazon.com/albums/B00XABC123", id: "amazonmusic" },
+  { url: "https://www.pandora.com/artist/example/album/example/ALbcdEFghi12345", id: "pandora" },
+  { url: "https://www.iheart.com/podcast/123-example-show-12345678/", id: "iheartradio" },
+  { url: "https://www.audible.com/pd/Example-Book-Audiobook/B0ABC12XYZ", id: "audible" },
+  { url: "https://www.deezer.com/us/track/123456789", id: "deezer" },
+  { url: "https://tidal.com/browse/track/123456789", id: "tidal" },
+  { url: "https://pocketcasts.com/podcasts/abc123-def456", id: "pocketcasts" },
+  { url: "https://pca.st/abc123", id: "pocketcasts" },
+
+  // Read: articles, news, and books
+  { url: "https://x.com/user/status/123456789012345678", id: "x" },
+  { url: "https://twitter.com/user/status/123456789012345678", id: "x" },
+  { url: "https://www.nytimes.com/2026/08/25/world/example-article.html", id: "nytimes" },
+  { url: "https://www.theguardian.com/world/2026/aug/25/example-article", id: "theguardian" },
+  { url: "https://www.goodreads.com/book/show/123456.Example_Title", id: "goodreads" },
+  { url: "https://www.webtoons.com/en/genre/title/episode-1/viewer?title_no=123", id: "webtoon" },
+  { url: "https://www.wattpad.com/story/123456789-example-story", id: "wattpad" },
+  { url: "https://archiveofourown.org/works/12345678", id: "archiveofourown" },
+  { url: "https://read.amazon.com/?asin=B00XABC123", id: "kindle" }
 ]
 
 test("every provider domain resolves via a realistic URL", function() {
@@ -111,10 +148,24 @@ test("every entry has all required fields with valid kind and openAction", funct
   })
 })
 
-test("all() returns the full 15-entry table with unique ids", function() {
+test("all() returns the full 42-entry table with unique ids", function() {
   var entries = Providers.all()
-  assert.strictEqual(entries.length, 15)
+  assert.strictEqual(entries.length, 42)
   var ids = entries.map(function(e) { return e.id })
   var unique = ids.filter(function(id, i) { return ids.indexOf(id) === i })
   assert.strictEqual(unique.length, ids.length)
+})
+
+test("subdomain-exact apple/amazon entries match their own subdomain, not each other or null", function() {
+  var appletv = Providers.match("https://tv.apple.com/us/movie/example/umc.cmc.abc123")
+  assert.ok(appletv)
+  assert.strictEqual(appletv.id, "appletv")
+
+  var applemusic = Providers.match("https://music.apple.com/us/album/example/1234567890")
+  assert.ok(applemusic)
+  assert.strictEqual(applemusic.id, "applemusic")
+
+  var hbomax = Providers.match("https://www.max.com/show/example/abc123")
+  assert.ok(hbomax)
+  assert.strictEqual(hbomax.id, "hbomax")
 })

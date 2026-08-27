@@ -141,6 +141,269 @@ function providerTable() {
       logoAsset: "assets/logos/reddit.svg",
       resolver: { type: "opengraph" },
       openAction: "browser"
+    },
+
+    // --- Watch: streaming video services ---
+    {
+      id: "netflix",
+      displayName: "Netflix",
+      kind: "watch",
+      domains: ["netflix.com"],
+      logoAsset: "assets/logos/netflix.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "primevideo",
+      displayName: "Prime Video",
+      kind: "watch",
+      domains: ["primevideo.com"],
+      logoAsset: "assets/logos/primevideo.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "disneyplus",
+      displayName: "Disney+",
+      kind: "watch",
+      domains: ["disneyplus.com"],
+      logoAsset: "assets/logos/disneyplus.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "hbomax",
+      displayName: "HBO Max",
+      kind: "watch",
+      // max.com kept alongside hbomax.com so pre-rebrand links still match.
+      domains: ["hbomax.com", "max.com"],
+      logoAsset: "assets/logos/hbomax.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "hulu",
+      displayName: "Hulu",
+      kind: "watch",
+      domains: ["hulu.com"],
+      logoAsset: "assets/logos/hulu.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "appletv",
+      displayName: "Apple TV",
+      kind: "watch",
+      // Exact-match subdomain, same pattern as music.youtube.com: no
+      // parent apple.com entry exists anywhere in this table.
+      domains: ["tv.apple.com"],
+      logoAsset: "assets/logos/appletv.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "paramountplus",
+      displayName: "Paramount+",
+      kind: "watch",
+      domains: ["paramountplus.com"],
+      logoAsset: "assets/logos/paramountplus.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "peacock",
+      displayName: "Peacock",
+      kind: "watch",
+      domains: ["peacocktv.com"],
+      logoAsset: "assets/logos/peacock.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "crunchyroll",
+      displayName: "Crunchyroll",
+      kind: "watch",
+      domains: ["crunchyroll.com"],
+      logoAsset: "assets/logos/crunchyroll.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "tubi",
+      displayName: "Tubi",
+      kind: "watch",
+      domains: ["tubitv.com"],
+      logoAsset: "assets/logos/tubi.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "dailymotion",
+      displayName: "Dailymotion",
+      kind: "watch",
+      domains: ["dailymotion.com", "dai.ly"],
+      logoAsset: "assets/logos/dailymotion.svg",
+      resolver: { type: "oembed", endpoint: "https://www.dailymotion.com/services/oembed?url={url}" },
+      openAction: "mpv"
+    },
+
+    // --- Listen: music, radio, and audiobook services ---
+    {
+      id: "applemusic",
+      displayName: "Apple Music",
+      kind: "listen",
+      // Exact-match subdomain, same pattern as music.youtube.com: no
+      // parent apple.com entry exists anywhere in this table.
+      domains: ["music.apple.com"],
+      logoAsset: "assets/logos/applemusic.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "amazonmusic",
+      displayName: "Amazon Music",
+      kind: "listen",
+      // Exact-match subdomain, same pattern as music.youtube.com: no
+      // parent amazon.com entry exists anywhere in this table.
+      domains: ["music.amazon.com"],
+      logoAsset: "assets/logos/amazonmusic.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "pandora",
+      displayName: "Pandora",
+      kind: "listen",
+      domains: ["pandora.com"],
+      logoAsset: "assets/logos/pandora.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "iheartradio",
+      displayName: "iHeartRadio",
+      kind: "listen",
+      domains: ["iheart.com"],
+      logoAsset: "assets/logos/iheartradio.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "audible",
+      displayName: "Audible",
+      kind: "listen",
+      domains: ["audible.com"],
+      logoAsset: "assets/logos/audible.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "deezer",
+      displayName: "Deezer",
+      kind: "listen",
+      domains: ["deezer.com"],
+      logoAsset: "assets/logos/deezer.svg",
+      resolver: { type: "oembed", endpoint: "https://api.deezer.com/oembed?url={url}" },
+      openAction: "browser"
+    },
+    {
+      id: "tidal",
+      displayName: "Tidal",
+      kind: "listen",
+      domains: ["tidal.com"],
+      logoAsset: "assets/logos/tidal.svg",
+      // opengraph on purpose: Tidal's oEmbed response lacks the title
+      // field our resolve script's oEmbed tier requires.
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "pocketcasts",
+      displayName: "Pocket Casts",
+      kind: "listen",
+      domains: ["pocketcasts.com", "pca.st"],
+      logoAsset: "assets/logos/pocketcasts.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+
+    // --- Read: articles, news, and books ---
+    {
+      id: "x",
+      displayName: "X",
+      kind: "read",
+      domains: ["x.com", "twitter.com"],
+      logoAsset: "assets/logos/x.svg",
+      // opengraph on purpose: publish.x.com oEmbed returns no title field.
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "nytimes",
+      displayName: "The New York Times",
+      kind: "read",
+      domains: ["nytimes.com"],
+      logoAsset: "assets/logos/nytimes.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "theguardian",
+      displayName: "The Guardian",
+      kind: "read",
+      domains: ["theguardian.com"],
+      logoAsset: "assets/logos/theguardian.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "goodreads",
+      displayName: "Goodreads",
+      kind: "read",
+      domains: ["goodreads.com"],
+      logoAsset: "assets/logos/goodreads.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "webtoon",
+      displayName: "Webtoon",
+      kind: "read",
+      domains: ["webtoons.com"],
+      logoAsset: "assets/logos/webtoon.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "wattpad",
+      displayName: "Wattpad",
+      kind: "read",
+      domains: ["wattpad.com"],
+      logoAsset: "assets/logos/wattpad.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "archiveofourown",
+      displayName: "Archive of Our Own",
+      kind: "read",
+      domains: ["archiveofourown.org"],
+      logoAsset: "assets/logos/archiveofourown.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
+    },
+    {
+      id: "kindle",
+      displayName: "Kindle",
+      kind: "read",
+      // Exact-match subdomain, same pattern as music.youtube.com: no
+      // parent amazon.com entry exists anywhere in this table.
+      // Login-walled: OpenGraph tags will be thin here, so the bare
+      // hostname fallback tier carries most Kindle links.
+      domains: ["read.amazon.com"],
+      logoAsset: "assets/logos/kindle.svg",
+      resolver: { type: "opengraph" },
+      openAction: "browser"
     }
   ]
 }

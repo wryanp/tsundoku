@@ -69,6 +69,63 @@ hostname title and shows a retry button.
 Items from recognized platforms show that platform's logo, tinted to your
 theme's foreground color. Everything else gets a watch/listen/read glyph.
 
+## Supported providers
+
+Tsundoku recognizes links from these platforms and shows their logo, real
+title, and thumbnail. Anything else still saves fine — it just falls back to
+a bare hostname and a watch/listen/read glyph.
+
+**Watch**
+
+- [Netflix](https://www.netflix.com)
+- [Prime Video](https://www.primevideo.com)
+- [Disney+](https://www.disneyplus.com)
+- [HBO Max](https://www.hbomax.com)
+- [Hulu](https://www.hulu.com)
+- [Apple TV](https://tv.apple.com)
+- [Paramount+](https://www.paramountplus.com)
+- [Peacock](https://www.peacocktv.com)
+- [Crunchyroll](https://www.crunchyroll.com)
+- [Tubi](https://tubitv.com)
+- [Dailymotion](https://www.dailymotion.com)
+- [YouTube](https://www.youtube.com)
+- [Vimeo](https://vimeo.com)
+- [Twitch](https://www.twitch.tv)
+- [TikTok](https://www.tiktok.com)
+
+**Listen**
+
+- [Apple Music](https://music.apple.com)
+- [Amazon Music](https://music.amazon.com)
+- [Pandora](https://www.pandora.com)
+- [iHeartRadio](https://www.iheart.com)
+- [Audible](https://www.audible.com)
+- [Deezer](https://www.deezer.com)
+- [Tidal](https://tidal.com)
+- [Pocket Casts](https://pocketcasts.com)
+- [Spotify](https://www.spotify.com)
+- [SoundCloud](https://soundcloud.com)
+- [Bandcamp](https://www.bandcamp.com)
+- [Apple Podcasts](https://podcasts.apple.com)
+- [YouTube Music](https://music.youtube.com)
+
+**Read**
+
+- [X](https://x.com)
+- [The New York Times](https://www.nytimes.com)
+- [The Guardian](https://www.theguardian.com)
+- [Goodreads](https://www.goodreads.com)
+- [Webtoon](https://www.webtoons.com)
+- [Wattpad](https://www.wattpad.com)
+- [Archive of Our Own](https://archiveofourown.org)
+- [Kindle](https://read.amazon.com)
+- [Medium](https://medium.com)
+- [Substack](https://substack.com)
+- [arXiv](https://arxiv.org)
+- [Wikipedia](https://www.wikipedia.org)
+- [Hacker News](https://news.ycombinator.com)
+- [Reddit](https://www.reddit.com)
+
 ## IPC
 
 The service answers on the `tsundoku` IPC target:

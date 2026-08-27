@@ -4,6 +4,7 @@
   "name": "Tsundoku",
   "version": "0.3.0",
   "author": "wryanp",
+  "license": "MIT",
   "description": "A read/listen/watch list: save links from anywhere, see them with rich previews in a popup off the bar, and open them in the right player with one click.",
   "kinds": ["service", "bar-widget"],
   "keepLoaded": true,

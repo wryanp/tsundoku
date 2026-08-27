@@ -10,7 +10,7 @@ the right native app with one click.
 
 ```bash
 omarchy plugin add https://github.com/wryanp/tsundoku.git
-omarchy plugin enable william.tsundoku
+omarchy plugin enable wryanp.tsundoku
 ```
 
 The bar widget shows an unread count. Click it to open the popup: a list of
@@ -19,7 +19,7 @@ everything you've saved, filterable by All, Watch, Listen, Read, and Done.
 To remove it again:
 
 ```bash
-omarchy plugin remove william.tsundoku
+omarchy plugin remove wryanp.tsundoku
 ```
 
 Your saved library under `~/.local/share/tsundoku/` is left in place (see
@@ -47,7 +47,7 @@ Bind the hotkey in `~/.config/hypr/bindings.lua`:
 
 ```lua
 o.bind("SUPER + SHIFT + U", "Tsundoku capture",
-  os.getenv("HOME") .. "/.config/omarchy/plugins/william.tsundoku/scripts/tsundoku-add")
+  os.getenv("HOME") .. "/.config/omarchy/plugins/wryanp.tsundoku/scripts/tsundoku-add")
 ```
 
 Pick any free chord — on a stock Omarchy install `SUPER+SHIFT+U` is
@@ -175,7 +175,7 @@ the popup is open.
 
 ## Development
 
-The working tree is `~/.config/omarchy/plugins/william.tsundoku`. Edit it in
+The working tree is `~/.config/omarchy/plugins/wryanp.tsundoku`. Edit it in
 place — saving any file under `~/.config/omarchy/plugins/` reloads the plugin,
 but run `omarchy-restart-shell` after QML edits: the reload can re-instantiate
 widgets from stale compiled components. Validate the manifest before

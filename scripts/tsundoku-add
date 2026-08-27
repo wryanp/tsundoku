@@ -9,7 +9,7 @@
 #
 # Bind it in ~/.config/hypr/bindings.lua:
 #   o.bind("SUPER + SHIFT + U", "Tsundoku capture",
-#          os.getenv("HOME") .. "/.config/omarchy/plugins/william.tsundoku/scripts/tsundoku-add")
+#          os.getenv("HOME") .. "/.config/omarchy/plugins/wryanp.tsundoku/scripts/tsundoku-add")
 
 notify() {
   # Replace any previous tsundoku notification instead of stacking them,

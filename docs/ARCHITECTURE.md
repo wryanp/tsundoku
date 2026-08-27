@@ -19,7 +19,7 @@ bar widget, so it doesn't need that machinery.
 There's no external daemon. The `service` kind *is* the daemon: a headless
 singleton `Item` that `omarchy-shell` instantiates at startup because the
 manifest declares it. The bar widget doesn't own any state itself — it finds
-the running service with `bar.shell.serviceFor("william.tsundoku")` and binds
+the running service with `bar.shell.serviceFor("wryanp.tsundoku")` and binds
 its UI to the service's properties.
 
 Data flows one way: the widget renders whatever the service's state is, and
@@ -61,7 +61,7 @@ of the source image URL. `removeItem` deletes an item's cached thumbnail
 file (only ever inside that cache dir, never elsewhere) when the item goes.
 
 Nothing runtime lives in the plugin's own repo directory. The git checkout
-under `~/.config/omarchy/plugins/william.tsundoku/` is code only.
+under `~/.config/omarchy/plugins/wryanp.tsundoku/` is code only.
 
 ## Theming
 
@@ -123,7 +123,7 @@ flash of an untinted or broken image.
 
 ## Dev workflow
 
-Edit directly in `~/.config/omarchy/plugins/william.tsundoku` — saving any
+Edit directly in `~/.config/omarchy/plugins/wryanp.tsundoku` — saving any
 file there triggers the shell's plugin reload. Caveat found in practice: the
 reload re-instantiates widgets but the QML engine can serve stale compiled
 components, so after editing `.qml` files run `omarchy-restart-shell` to be

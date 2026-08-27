@@ -9,9 +9,9 @@ import "PanelModel.js" as PanelModel
 
 BarWidget {
   id: root
-  moduleName: "william.tsundoku"
+  moduleName: "wryanp.tsundoku"
 
-  readonly property var service: bar?.shell?.serviceFor("william.tsundoku")
+  readonly property var service: bar?.shell?.serviceFor("wryanp.tsundoku")
   readonly property var items: service ? service.items : []
   readonly property int unreadCount: service ? service.unreadCount : 0
 
@@ -65,7 +65,7 @@ BarWidget {
   onCursorChanged: if (cursor >= 0) itemList.positionViewAtIndex(cursor, ListView.Contain)
 
   // open/close/opened form the bar host's summon contract, so
-  // `omarchy-shell shell toggle william.tsundoku` can drive the popup
+  // `omarchy-shell shell toggle wryanp.tsundoku` can drive the popup
   // from a Hyprland keybinding without a separate panel kind.
   readonly property bool opened: popupOpen
   function open() { popupOpen = true }

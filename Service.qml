@@ -4,7 +4,7 @@ import Quickshell.Io
 import "Providers.js" as Providers
 
 // Headless service: sole owner of the tsundoku library. The bar widget
-// (and any future UI) finds this via shell.serviceFor("william.tsundoku")
+// (and any future UI) finds this via shell.serviceFor("wryanp.tsundoku")
 // and binds to items/unreadCount, calling the mutator functions below.
 // Provider matching is data-driven (Providers.js); metadata resolution
 // (title/author/thumbnail) runs asynchronously per item via

@@ -1,0 +1,96 @@
+# Mirrors /usr/share/omarchy/bin/omarchy-plugin-validate so a manifest the
+# shell would reject can never reach main unnoticed. Kept as plain bash+jq —
+# the same tools the real validator uses — rather than depending on an
+# omarchy install existing on the runner.
+name: validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate manifest.json
+        run: |
+          set -euo pipefail
+
+          fail() { echo "::error::$*"; exit 1; }
+
+          M=manifest.json
+          [ -f "$M" ] || fail "missing manifest.json at repo root"
+          jq -e . "$M" >/dev/null 2>&1 || fail "manifest.json is not valid JSON"
+
+          # schemaVersion must be exactly the JSON number 1 (jq's == is
+          # type-aware, so the string "1" is rejected like the shell does).
+          jq -e '.schemaVersion == 1' "$M" >/dev/null \
+            || fail "unsupported or missing schemaVersion (expected 1)"
+
+          for field in id name version kinds entryPoints; do
+            jq -e --arg f "$field" 'has($f)' "$M" >/dev/null \
+              || fail "manifest missing required field '$field'"
+          done
+
+          ID=$(jq -r '.id // ""' "$M")
+          [ -n "$ID" ] || fail "manifest 'id' is empty"
+          echo "$ID" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*$' || fail "invalid plugin id '$ID'"
+          case "$ID" in
+            *..*) fail "invalid plugin id '$ID'" ;;
+            omarchy.*) fail "plugin id '$ID' uses the reserved omarchy.* namespace" ;;
+          esac
+
+          jq -e '(.kinds | type) == "array" and (.kinds | length) > 0' "$M" >/dev/null \
+            || fail "'kinds' must be a non-empty array"
+          jq -e '(.entryPoints | type) == "object"' "$M" >/dev/null \
+            || fail "'entryPoints' must be an object"
+
+          jq -e '
+            if ((.barWidget? | type) == "object" and (.barWidget | has("defaultSection"))) then
+              .barWidget.defaultSection as $s
+              | ($s | type) == "string" and (["left", "center", "right"] | index($s)) != null
+            else
+              true
+            end
+          ' "$M" >/dev/null || fail "'barWidget.defaultSection' must be left, center, or right"
+
+          # Every entry point must be a safe relative path to a file that
+          # exists. Read each as a JSON-encoded string so a value containing
+          # a newline stays one literal path.
+          while IFS= read -r ep_json; do
+            [ -n "$ep_json" ] || continue
+            ep=$(jq -r '.' <<<"$ep_json")
+            [ -n "$ep" ] || fail "entry point path is empty"
+            case "$ep" in
+              *$'\n'*) fail "entry point may not contain a newline" ;;
+              /*) fail "entry point must be a relative path: '$ep'" ;;
+              *..*) fail "entry point may not contain '..': '$ep'" ;;
+            esac
+            [ -f "$ep" ] || fail "entry point file not found: '$ep'"
+          done < <(jq -c '.entryPoints | to_entries[] | .value' "$M")
+
+          # A declared kind must bring the entry point the shell loads it by.
+          for pair in bar:bar bar-widget:barWidget menu:menu overlay:overlay panel:panel service:service; do
+            kind="${pair%%:*}"
+            ep="${pair##*:}"
+            jq -e --arg kind "$kind" '(.kinds | index($kind)) != null' "$M" >/dev/null || continue
+            jq -e --arg ep "$ep" '.entryPoints | has($ep)' "$M" >/dev/null \
+              || fail "kind '$kind' requires an 'entryPoints.$ep' to load"
+          done
+
+          # Symlinks anywhere in the plugin folder are refused by the shell.
+          link=$(find . -name .git -prune -o -type l -print -quit)
+          [ -z "$link" ] || fail "symlinks are not allowed inside a plugin folder: $link"
+
+          echo "manifest.json is valid"
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test

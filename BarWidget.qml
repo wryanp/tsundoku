@@ -14,10 +14,6 @@ BarWidget {
   readonly property var service: bar?.shell?.serviceFor("william.tsundoku")
   readonly property var items: service ? service.items : []
   readonly property int unreadCount: service ? service.unreadCount : 0
-  // Bound (not read once) so the settings row re-evaluates when the
-  // service reassigns these wholesale.
-  readonly property var authState: service ? service.authState : ({})
-  readonly property string lastAuthError: service ? service.lastAuthError : ""
 
   // Scanned once here rather than per-delegate.
   readonly property var providerEntries: Providers.all()
@@ -46,28 +42,14 @@ BarWidget {
   // Id of the single expanded row's note detail, "" when none is open.
   property string expandedId: ""
 
-  // Inline feedback for the Spotify row, mirroring addError: "" when
-  // clean, set when a Connect click can't start a flow (no client id, no
-  // node) — a click must always visibly answer, even when the answer is
-  // "not set up yet".
-  property string authHint: ""
-
-  // Real state transitions supersede the hint (the service skips
-  // same-state reassigns, so a re-probe that changes nothing keeps it).
-  onAuthStateChanged: authHint = ""
-
   // Reset feedback on open/close, and focus the add field on open so the
   // popup is paste-ready without a click.
   onPopupOpenChanged: {
     root.addError = ""
-    root.authHint = ""
     root.cursor = -1
     root.expandedId = ""
     if (root.popupOpen) {
       addField.forceActiveFocus()
-      // Notices a clients.json dropped into place since startup, so the
-      // Connect button enables without a shell restart.
-      if (root.service) root.service.refreshAuthStatus()
     }
   }
 
@@ -544,126 +526,6 @@ BarWidget {
         color: Qt.darker(root.bar.foreground, 1.5)
         font.family: root.bar.fontFamily
         font.pixelSize: Style.font.bodySmall
-        wrapMode: Text.WordWrap
-      }
-
-      PanelSeparator {
-        foreground: root.bar.foreground
-      }
-
-      Row {
-        id: spotifySettingsRow
-        width: parent.width
-        spacing: Style.space(8)
-
-        readonly property string spotifyState: root.authState.spotify || "unknown"
-
-        // Same hidden-Image + MultiEffect tint idiom as the item rows'
-        // provider logo, sized down to a settings-row glyph rather than a
-        // thumbnail slot.
-        Item {
-          id: spotifyLogoSlot
-          width: Style.space(20)
-          height: Style.space(20)
-          anchors.verticalCenter: parent.verticalCenter
-
-          Image {
-            id: spotifyLogoImage
-            anchors.fill: parent
-            visible: false
-            layer.enabled: true
-            asynchronous: true
-            fillMode: Image.PreserveAspectFit
-            source: Qt.resolvedUrl("assets/logos/spotify.svg")
-          }
-
-          MultiEffect {
-            anchors.fill: spotifyLogoImage
-            source: spotifyLogoImage
-            visible: spotifyLogoImage.status === Image.Ready
-            colorization: 1.0
-            colorizationColor: root.bar.foreground
-          }
-        }
-
-        Column {
-          width: parent.width - spotifyLogoSlot.width - spotifyAuthButton.width - spotifySettingsRow.spacing * 2
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.space(1)
-
-          Text {
-            text: "Spotify"
-            color: root.bar.foreground
-            font.family: root.bar.fontFamily
-            font.pixelSize: Style.font.bodySmall
-            font.bold: true
-          }
-
-          Text {
-            text: {
-              var state = spotifySettingsRow.spotifyState
-              if (state === "connected") return "Connected — richer metadata"
-              if (state === "connecting") return "Waiting for your browser…"
-              if (state === "error") return root.lastAuthError ? ("Connection failed: " + root.lastAuthError) : "Connection failed"
-              if (state === "unconfigured") return "Needs a Spotify app client id"
-              if (state === "disconnected") return "Connect for richer metadata"
-              return "Unavailable"
-            }
-            color: Qt.darker(root.bar.foreground, 1.5)
-            font.family: root.bar.fontFamily
-            font.pixelSize: Style.font.caption
-            elide: Text.ElideRight
-            width: parent.width
-          }
-        }
-
-        Button {
-          id: spotifyAuthButton
-          anchors.verticalCenter: parent.verticalCenter
-          text: spotifySettingsRow.spotifyState === "connected" ? "Disconnect"
-              : spotifySettingsRow.spotifyState === "connecting" ? "Connecting…"
-              : "Connect"
-          // Enabled in every state but mid-flow: a click that can't start
-          // anything answers with authHint below instead of being eaten
-          // by a disabled control.
-          enabled: spotifySettingsRow.spotifyState !== "connecting"
-          foreground: root.bar.foreground
-          bordered: true
-          horizontalPadding: Style.spacing.controlPaddingX
-          verticalPadding: Style.spacing.controlPaddingY
-          fontSize: Style.font.bodySmall
-          onClicked: {
-            if (!root.service) return
-            root.authHint = ""
-            var state = spotifySettingsRow.spotifyState
-            if (state === "connected") {
-              if (!root.service.disconnectProvider("spotify"))
-                root.authHint = "Can't run the auth helper — node isn't installed."
-              return
-            }
-            if (state === "unconfigured") {
-              // Re-probe too, so a clients.json created moments ago flips
-              // the row without reopening the popup.
-              root.service.refreshAuthStatus()
-              root.authHint = "Needs a one-time setup: create an app at developer.spotify.com/dashboard, then put its client id in ~/.local/share/tsundoku/auth/clients.json — full steps under \"Connect Spotify\" in the README."
-              return
-            }
-            if (!root.service.connectProvider("spotify")) {
-              root.authHint = root.service.openCaps.node
-                ? "Couldn't start the connect flow — try again."
-                : "Can't run the auth helper — node isn't installed."
-            }
-          }
-        }
-      }
-
-      Text {
-        visible: root.authHint !== ""
-        width: parent.width
-        text: root.authHint
-        color: Color.urgent
-        font.family: root.bar.fontFamily
-        font.pixelSize: Style.font.caption
         wrapMode: Text.WordWrap
       }
     }

@@ -59,20 +59,7 @@ function providerTable() {
       domains: ["open.spotify.com", "spotify.com"],
       logoAsset: "assets/logos/spotify.svg",
       resolver: { type: "oembed", endpoint: "https://open.spotify.com/oembed?url={url}" },
-      openAction: "spotify",
-      // OAuth 2.0 PKCE (public client, no secret). clientId ships empty:
-      // each install supplies its own Spotify app id via the clients.json
-      // overlay (see scripts/tsundoku-auth) — Spotify requires the exact
-      // redirect URI (including this port) to be registered on that app.
-      // No scopes: catalog metadata needs only a valid user token.
-      auth: {
-        authEndpoint: "https://accounts.spotify.com/authorize",
-        tokenEndpoint: "https://accounts.spotify.com/api/token",
-        scopes: [],
-        clientId: "",
-        redirectPort: 41419,
-        redirectPath: "/callback"
-      }
+      openAction: "browser"
     },
     {
       id: "soundcloud",
@@ -217,49 +204,13 @@ function isDirectAudioUrl(url) {
   return /\.(mp3|m4a|ogg|oga|opus|flac|wav|aac)$/i.test(m[1])
 }
 
-// open.spotify.com paths are "/{type}/{id}" or, with a locale prefix,
-// "/{locale}/{type}/{id}" (e.g. "/intl-pt/track/{id}"). The path capture
-// already excludes query/fragment, so the id comes out clean.
-function spotifyUri(url) {
-  if (hostFromUrl(url) !== "open.spotify.com") return null
-
-  var m = String(url || "").match(/^https?:\/\/[^\/?#]+([^?#]*)/i)
-  if (!m) return null
-
-  var segs = m[1].split("/").filter(function(s) { return s.length > 0 })
-  if (segs.length === 3) segs = segs.slice(1)
-  if (segs.length !== 2) return null
-
-  var type = segs[0]
-  var id = segs[1]
-  var validTypes = ["track", "album", "artist", "playlist", "episode", "show"]
-  if (validTypes.indexOf(type) < 0) return null
-  if (!id) return null
-
-  return "spotify:" + type + ":" + id
-}
-
-// The provider's OAuth config, or null for providers with no auth story.
-// scripts/tsundoku-auth requires() this module and resolves its per-install
-// overlay (clients.json) on top of what this returns.
-function authConfig(providerId) {
-  var entries = providerTable()
-  for (var i = 0; i < entries.length; i++) {
-    if (entries[i].id === providerId) {
-      return entries[i].auth || null
-    }
-  }
-  return null
-}
-
 // Decides how a URL should be opened. Every fallback here is silent by
-// design: a missing app (no mpv, no yt-dlp, no spotify handler) must
-// never block the open, it should just degrade to the browser.
+// design: a missing app (no mpv, no yt-dlp) must never block the open,
+// it should just degrade to the browser.
 function openPlan(url, providerId, caps) {
   caps = caps || {}
   var mpv = !!caps.mpv
   var ytdlp = !!caps.ytdlp
-  var spotifyHandler = !!caps.spotifyHandler
 
   // Direct audio files only need mpv itself, not yt-dlp extraction.
   if (isDirectAudioUrl(url) && mpv) {
@@ -279,13 +230,6 @@ function openPlan(url, providerId, caps) {
     return { method: "mpv", command: ["mpv", url] }
   }
 
-  if (entry && entry.openAction === "spotify" && spotifyHandler) {
-    var uri = spotifyUri(url)
-    if (uri) {
-      return { method: "spotify", command: ["xdg-open", uri] }
-    }
-  }
-
   return { method: "browser", command: ["xdg-open", url] }
 }
 
@@ -296,8 +240,6 @@ if (typeof module !== "undefined" && module.exports) {
     hostFromUrl: hostFromUrl,
     guessKind: guessKind,
     isDirectAudioUrl: isDirectAudioUrl,
-    spotifyUri: spotifyUri,
-    authConfig: authConfig,
     openPlan: openPlan
   }
 }

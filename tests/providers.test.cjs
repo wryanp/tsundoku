@@ -92,7 +92,7 @@ test("guessKind returns the matched entry's kind", function() {
 
 test("every entry has all required fields with valid kind and openAction", function() {
   var validKinds = ["watch", "listen", "read"]
-  var validOpenActions = ["browser", "mpv", "spotify"]
+  var validOpenActions = ["browser", "mpv"]
   Providers.all().forEach(function(entry) {
     assert.strictEqual(typeof entry.id, "string")
     assert.ok(entry.id.length > 0)
@@ -117,28 +117,4 @@ test("all() returns the full 15-entry table with unique ids", function() {
   var ids = entries.map(function(e) { return e.id })
   var unique = ids.filter(function(id, i) { return ids.indexOf(id) === i })
   assert.strictEqual(unique.length, ids.length)
-})
-
-test("authConfig returns spotify's OAuth block", function() {
-  var auth = Providers.authConfig("spotify")
-  assert.strictEqual(auth.authEndpoint, "https://accounts.spotify.com/authorize")
-  assert.strictEqual(auth.tokenEndpoint, "https://accounts.spotify.com/api/token")
-  assert.deepStrictEqual(auth.scopes, [])
-  assert.strictEqual(auth.clientId, "")
-  assert.strictEqual(auth.redirectPort, 41419)
-  assert.strictEqual(auth.redirectPath, "/callback")
-})
-
-test("authConfig returns null for providers with no auth story and for unknown ids", function() {
-  assert.strictEqual(Providers.authConfig("youtube"), null)
-  assert.strictEqual(Providers.authConfig("not-a-real-provider"), null)
-})
-
-// Pinned against accidental drift: the Spotify app registration on
-// accounts.spotify.com has this exact redirect URI on file, so changing
-// either value here breaks OAuth for every existing install.
-test("spotify registry entry pins redirectPort and redirectPath", function() {
-  var entry = Providers.match("https://open.spotify.com/track/x")
-  assert.strictEqual(entry.auth.redirectPort, 41419)
-  assert.strictEqual(entry.auth.redirectPath, "/callback")
 })

@@ -1,0 +1,27 @@
+name: Bug report
+description: Something broke or behaved unexpectedly
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead. If a specific URL misbehaved (wrong provider, no preview, wrong open target), include it.
+    validations:
+      required: true
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `omarchy version`, and the plugin version from `manifest.json` (or the commit you're on).
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or IPC output (optional)
+      description: |
+        If relevant, output from `omarchy-shell tsundoku ping` / `add <url>` /
+        `list`, or anything Tsundoku-related in the shell logs.
+      render: text

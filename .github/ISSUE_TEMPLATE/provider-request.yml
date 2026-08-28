@@ -1,0 +1,49 @@
+name: Provider request
+description: Ask for a platform to be recognized with its own logo and preview handling
+title: "Provider request: "
+labels: [provider-request]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Links from unlisted platforms already save fine — they just fall back
+        to a hostname title and a generic glyph. This request adds first-class
+        recognition. Adding one yourself is also a small, well-marked change:
+        see [CONTRIBUTING.md](https://github.com/wryanp/tsundoku/blob/main/CONTRIBUTING.md).
+  - type: input
+    id: name
+    attributes:
+      label: Platform name
+      placeholder: e.g. Nebula
+    validations:
+      required: true
+  - type: input
+    id: domains
+    attributes:
+      label: Domains
+      description: The domains content is served from, comma-separated. Include short-link domains if the platform uses one.
+      placeholder: e.g. nebula.tv
+    validations:
+      required: true
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - watch
+        - listen
+        - read
+    validations:
+      required: true
+  - type: input
+    id: example
+    attributes:
+      label: Example link
+      description: A real content URL (a video, episode, or article — not the homepage).
+    validations:
+      required: true
+  - type: input
+    id: slug
+    attributes:
+      label: Simple Icons slug (if known)
+      description: Check https://simpleicons.org — logos come from there (CC0). Leave blank if unsure.

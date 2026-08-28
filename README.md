@@ -300,6 +300,13 @@ a bare hostname and a watch/listen/read glyph.
 - [xkcd](https://xkcd.com)
 - [Genius](https://genius.com)
 
+## Contributing
+
+Provider requests and bug reports are welcome as issues. Adding a provider
+yourself is a small, well-marked change — see
+[CONTRIBUTING.md](CONTRIBUTING.md). Releases are listed in
+[CHANGELOG.md](CHANGELOG.md).
+
 ## IPC
 
 The service answers on the `tsundoku` IPC target:

@@ -1,0 +1,50 @@
+# Tags and publishes a GitHub release whenever the version in manifest.json
+# changes on main. The tag is the idempotence check: if v<version> already
+# exists the run is a no-op, so ordinary pushes that touch manifest.json for
+# other reasons stay quiet. Release notes come from the matching CHANGELOG
+# section, falling back to GitHub's generated notes if the section is missing.
+name: release
+
+on:
+  push:
+    branches: [main]
+    paths: [manifest.json]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag and release the manifest version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          V=$(jq -r '.version // ""' manifest.json)
+          [[ "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+            || { echo "::error::manifest version '$V' is not X.Y.Z"; exit 1; }
+
+          if git ls-remote --exit-code --tags origin "refs/tags/v$V" >/dev/null; then
+            echo "v$V is already tagged; nothing to release"
+            exit 0
+          fi
+
+          # Extract this version's CHANGELOG section (between its "## vX.Y.Z"
+          # heading and the next "## " heading).
+          awk -v ver="v$V" '
+            /^## / { if (found) exit; if ($2 == ver) { found = 1; next } }
+            found { print }
+          ' CHANGELOG.md > notes.md || true
+
+          if [ -s notes.md ]; then
+            gh release create "v$V" --title "v$V" \
+              --notes-file notes.md --target "$GITHUB_SHA"
+          else
+            gh release create "v$V" --title "v$V" \
+              --generate-notes --target "$GITHUB_SHA"
+          fi

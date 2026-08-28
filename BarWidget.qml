@@ -385,6 +385,9 @@ BarWidget {
 
                 Text {
                   text: itemRow.it.title
+                  // Title and caption are remote metadata: PlainText keeps
+                  // Qt's AutoText from interpreting markup a page put there.
+                  textFormat: Text.PlainText
                   color: root.bar.foreground
                   font.family: root.bar.fontFamily
                   font.pixelSize: Style.font.bodySmall
@@ -395,6 +398,7 @@ BarWidget {
 
                 Text {
                   text: itemRow.caption
+                  textFormat: Text.PlainText
                   color: Qt.darker(root.bar.foreground, 1.5)
                   font.family: root.bar.fontFamily
                   font.pixelSize: Style.font.caption

@@ -4,6 +4,25 @@ Notable changes to Tsundoku. The version in `manifest.json` is the source of
 truth; pushing a new version to `main` tags and publishes the release
 automatically.
 
+## v1.1.2 — 2026-08-29
+
+Closes the DNS rebinding gap in link resolution's SSRF defense
+(HANCORE-linux/omarchy-plugin-marketplace#2836, second round). v1.1.1
+checked that a URL's host resolved to public addresses but then let curl
+resolve the name again for the actual transfer, so a hostile DNS server
+could pass the check with a public answer and serve a loopback or LAN
+address for the fetch itself.
+
+- Every fetch — page, oEmbed, thumbnail, and each redirect hop — now pins
+  the exact vetted address into curl with `--resolve`, so the connection
+  can only go where the check looked. The original hostname is still used
+  for the Host header, TLS SNI, and certificate verification.
+- URL validation is stricter: userinfo, malformed authorities (unclosed
+  brackets, second colon, zone indexes), invalid or zero-padded ports, and
+  ambiguous numeric hosts (octal, hex, or integer IPv4 forms that different
+  parsers read as different addresses) are rejected outright instead of
+  interpreted.
+
 ## v1.1.1 — 2026-08-27
 
 Security hardening of link resolution, prompted by marketplace review

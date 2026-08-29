@@ -14,8 +14,8 @@
 
 UA="tsundoku/0.3 (+https://github.com/wryanp/tsundoku)"
 # No -L here: redirects are followed manually (see fetch_capped and
-# download_thumbnail) so every hop is re-checked with url_is_public before
-# it is fetched.
+# download_thumbnail) so every hop is re-vetted with url_resolve_pin, and
+# fetched only at the address that check vetted.
 CURL_OPTS=(--max-time 5 -sS --fail -A "$UA")
 MAX_REDIRECTS=5
 
@@ -24,7 +24,13 @@ MAX_REDIRECTS=5
 # A saved link is attacker-chosen input, so resolution must never become a
 # way to probe this machine or its LAN: every URL this script fetches —
 # page, oEmbed endpoint, thumbnail, and each redirect hop — has to pass
-# url_is_public first.
+# url_resolve_pin first, and the address it vetted is then pinned into the
+# curl invocation with --resolve. Checking without pinning would leave a
+# DNS rebinding hole: curl re-resolves the name itself, and a hostile DNS
+# server can answer the validation lookup with a public address and the
+# transfer's lookup with a loopback or LAN one. --resolve forces the
+# connection to the exact vetted address while curl still uses the original
+# hostname for the Host header, TLS SNI, and certificate verification.
 
 # True when $1 (an IPv4 or IPv6 literal) is a plausibly public address.
 ip_is_public() {
@@ -39,10 +45,17 @@ ip_is_public() {
     esac
     return 0
   fi
-  local a b c d
+  local a b c d o
   IFS=. read -r a b c d <<<"$ip"
   [[ -n "$a" && -n "$b" && -n "$c" && -n "$d" ]] || return 1
   [[ "$a$b$c$d" =~ ^[0-9]+$ ]] || return 1
+  # Canonical dotted-quad only: a leading zero means different parsers
+  # disagree on the value (glibc reads 010.0.0.1 as octal 8.0.0.1, others
+  # as decimal 10.0.0.1), so such forms are rejected, not interpreted.
+  for o in "$a" "$b" "$c" "$d"; do
+    [[ "$o" =~ ^(0|[1-9][0-9]{0,2})$ ]] || return 1
+    ((o <= 255)) || return 1
+  done
   ((a == 0 || a == 10 || a == 127)) && return 1  # "this" net, private, loopback
   ((a == 100 && b >= 64 && b <= 127)) && return 1 # CGNAT 100.64/10
   ((a == 169 && b == 254)) && return 1            # link-local
@@ -52,30 +65,93 @@ ip_is_public() {
   return 0
 }
 
-# True when $1 is an http(s) URL whose host resolves, and every address it
-# resolves to is public. One non-public address rejects the whole URL.
-url_is_public() {
-  local u="$1" host addrs ip
+# True when $1 is a valid TCP port with no ambiguity (no leading zeros).
+port_ok() {
+  [[ "$1" =~ ^[1-9][0-9]{0,4}$ ]] && (($1 <= 65535))
+}
+
+# Validates that $1 is a well-formed http(s) URL whose host is public, and
+# arranges for curl to connect to the exact address that was vetted. On
+# success, sets the global resolve_opts array to the --resolve arguments
+# that pin the vetted address (empty for IP-literal hosts, which involve no
+# DNS lookup to rebind) and returns 0.
+#
+# Rejected outright, rather than interpreted: userinfo (http://a@b/ tricks
+# naive parsers), a second colon in an unbracketed authority, invalid or
+# zero-padded ports, unclosed brackets, hosts outside [A-Za-z0-9.-], and
+# numeric-looking hosts (only digits, dots, x/X) that aren't a canonical
+# dotted quad — glibc, curl, and browsers disagree on octal/hex/integer
+# IPv4 forms, so no single interpretation of them can be trusted.
+#
+# For DNS-named hosts every resolved address must be public (one bad
+# address rejects the URL), and one vetted address — IPv4 preferred — is
+# pinned for the transfer.
+url_resolve_pin() {
+  local u="$1" authority host port after addrs ip pin=""
+  resolve_opts=()
   case "$u" in
-    http://* | https://*) ;;
+    http://*) port=80 ;;
+    https://*) port=443 ;;
     *) return 1 ;;
   esac
-  host="${u#*://}"
-  host="${host%%[/?#]*}"
-  host="${host##*@}"
-  if [[ "$host" == \[* ]]; then
-    host="${host#\[}"
-    host="${host%%]*}"
-  else
-    host="${host%%:*}"
+  authority="${u#*://}"
+  authority="${authority%%[/?#]*}"
+  [[ -n "$authority" && "$authority" != *@* ]] || return 1
+  if [[ "$authority" == \[* ]]; then
+    # Bracketed IPv6 literal, optionally followed by :port.
+    host="${authority#\[}"
+    [[ "$host" == *\]* ]] || return 1
+    after="${host#*\]}"
+    host="${host%%\]*}"
+    case "$after" in
+      "") ;;
+      :*) port="${after#:}" && port_ok "$port" || return 1 ;;
+      *) return 1 ;;
+    esac
+    # No zone index (%eth0) and at least one colon so this can't smuggle
+    # a non-IPv6 host through the literal path.
+    [[ "$host" =~ ^[0-9a-fA-F:.]+$ && "$host" == *:* ]] || return 1
+    ip_is_public "$host" || return 1
+    return 0
+  fi
+  host="${authority%%:*}"
+  if [[ "$authority" == *:* ]]; then
+    port="${authority#*:}"
+    [[ "$port" != *:* ]] && port_ok "$port" || return 1
   fi
   [[ -n "$host" ]] || return 1
+  if [[ "$host" =~ ^[0-9.xX]+$ ]]; then
+    # Numeric-looking host: accept only a canonical public dotted quad
+    # (ip_is_public enforces the format). Connecting to an IP literal does
+    # no DNS lookup, so there is nothing to pin.
+    ip_is_public "$host" || return 1
+    return 0
+  fi
+  [[ "$host" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]*[A-Za-z0-9])?$ ]] || return 1
   addrs="$(getent ahosts "$host" 2>/dev/null | awk '{ print $1 }' | sort -u)"
   [[ -n "$addrs" ]] || return 1
   while IFS= read -r ip; do
     ip_is_public "$ip" || return 1
+    # Prefer an IPv4 pin when both families resolved: it works regardless
+    # of whether the local network actually routes IPv6.
+    if [[ -z "$pin" || ("$pin" == *:* && "$ip" != *:*) ]]; then
+      pin="$ip"
+    fi
   done <<<"$addrs"
+  if [[ "$pin" == *:* ]]; then
+    resolve_opts=(--resolve "${host}:${port}:[${pin}]")
+  else
+    resolve_opts=(--resolve "${host}:${port}:${pin}")
+  fi
   return 0
+}
+
+# Validation-only view of url_resolve_pin, kept for the test suite and any
+# caller that doesn't go on to fetch. The local shadows the global array so
+# a probe never clobbers a pin an in-flight fetch is about to use.
+url_is_public() {
+  local resolve_opts
+  url_resolve_pin "$1"
 }
 
 # Final HTTP status code in a curl -D header dump ("HTTP/2 301" and
@@ -189,21 +265,22 @@ trim() {
 # "curl got SIGPIPE because head closed the read end at 256 KiB" (exit 23,
 # which we tolerate — it's the size cap working as intended).
 # Redirects are followed by hand, up to MAX_REDIRECTS, so that every hop is
-# re-checked with url_is_public — a public page must not be able to bounce
-# the fetch into localhost or the LAN.
+# re-vetted and re-pinned with url_resolve_pin — a public page must not be
+# able to bounce the fetch into localhost or the LAN, whether by redirect
+# target or by DNS rebinding between the check and the transfer.
 fetch_capped() {
   local u="$1" hops=0 tmp hdr code loc rest
   body=""
   fetch_status=1
   while :; do
-    if ! url_is_public "$u"; then
+    if ! url_resolve_pin "$u"; then
       body=""
       fetch_status=22
       return
     fi
     tmp="$(mktemp)"
     hdr="$(mktemp)"
-    curl "${CURL_OPTS[@]}" -D "$hdr" "$u" 2>/dev/null | head -c 262144 >"$tmp"
+    curl "${CURL_OPTS[@]}" "${resolve_opts[@]}" -D "$hdr" "$u" 2>/dev/null | head -c 262144 >"$tmp"
     fetch_status=${PIPESTATUS[0]}
     code="$(http_code_from "$hdr")"
     case "$code" in
@@ -286,7 +363,8 @@ download_thumbnail() {
   # A symlink at the cache path is never trusted as a hit, and the download
   # lands in a fresh mktemp file that is renamed over dest afterward — curl
   # never writes through a pre-existing path. Redirects are followed by hand
-  # with url_is_public re-checked per hop, same as fetch_capped.
+  # with url_resolve_pin re-vetting and re-pinning per hop, same as
+  # fetch_capped.
   if [[ -s "$dest" && ! -L "$dest" ]]; then
     printf '%s' "$dest"
     return 0
@@ -295,12 +373,12 @@ download_thumbnail() {
   local u="$thumb_url" hops=0 tmp hdr code loc rest
   tmp="$(mktemp -p "$dir")" || return 1
   while :; do
-    if ! url_is_public "$u"; then
+    if ! url_resolve_pin "$u"; then
       rm -f "$tmp"
       return 1
     fi
     hdr="$(mktemp)"
-    if ! curl "${CURL_OPTS[@]}" --max-filesize 5242880 -D "$hdr" -o "$tmp" "$u" 2>/dev/null; then
+    if ! curl "${CURL_OPTS[@]}" "${resolve_opts[@]}" --max-filesize 5242880 -D "$hdr" -o "$tmp" "$u" 2>/dev/null; then
       rm -f "$tmp" "$hdr"
       return 1
     fi
